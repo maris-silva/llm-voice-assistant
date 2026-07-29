@@ -28,6 +28,8 @@ llm-voice-assistant/
 │   ├── LED.py             # Módulo de controle do LED da placa via GPIO
 │   ├── main.py            # Script principal (orquestrador e loop de escuta)
 │   └── stt.py             # Módulo de processamento Speech-to-Text (Vosk)
+│   └── print_text.py      # Gera de logs de depuração
+
 ├── tests/
 │   └── moduleX_test.py    # Scripts de testes unitários e de integração
 ├── .gitignore             # Arquivos ignorados pelo repositório Git
