@@ -67,12 +67,19 @@ O comportamento do sistema é regido por uma Máquina de Estados:
 ## 5. Ferramentas, Linguagens e Componentes
 
 ### 5.1 Linguagens de Programação
-* **Python 3.x**: Linguagem principal para orquestração da máquina de estados, manipulação de GPIO e chamada de bibliotecas STT.
+* **Python 3.x**: Linguagem adotada para o desenvolvimento de toda a lógica do assistente. Foi escolhida devido ao suporte maduro a sistemas embarcados, facilidade de integração com drivers de áudio/hardware e ecossistema de bibliotecas para processamento de voz local.
 
 ### 5.2 Bibliotecas e Frameworks
-* **STT Engine**: *Vosk API* (modelo em português brasileiro pré-treinado de vocabulário reduzido).
+* **Speech-to-Text (STT) Engine:**
+  * `vosk` (Vosk API): Pacote de reconhecimento de fala offline. Utiliza um modelo em Português do Brasil de vocabulário restrito otimizado para a arquitetura ARM, permitindo a conversão áudio-texto local.
+* **Manipulação de Hardware (GPIO):**
+  * `gpiozero`: Biblioteca para controle dos pinos de entrada e saída (GPIO) da Raspberry Pi 3, responsável pelo acionamento do hardware de iluminação (LED) 
+* **Processamento e Captura de Áudio:**
+  * `pyaudio` (Interface Python para PortAudio, já instalada na placa): Utilizada para realizar a captura contínua do fluxo de áudio em tempo real enviado pelo microfone.
 
 ### 5.3 Hardware Utilizado
+* **Placa de Processamento Central (SBC):** Raspberry Pi 3 Model B.
+* **Dispositivo de Captura e Saída de Som:** Headset USB.
 
 ---
 
