@@ -1,24 +1,46 @@
-from stt import SpeechToText
 from gpiozero import LED
+from stt import SpeechToText
+
 WAKE_WORD = "ativar"
 
+led = LED(17)  # ajuste o pino GPIO conforme sua ligação
+
+
+def acender_luz():
+    led.on()
+    print("💡 Executando: Ligando as luzes do quarto...")
+
+
+def apagar_luz():
+    led.off()
+    print("🌑 Executando: Desligando as luzes do quarto...")
+
+
+def mostrar_horas():
+    from datetime import datetime
+    print(f"⏰ Agora são: {datetime.now().strftime('%H:%M')}")
+
+
+def cancelar():
+    print("😴 Executando: Cancelado.")
+
+
+# comando -> (frases-gatilho, função a executar)
 COMANDOS = {
-    "acender_luz": (["ligar a luz", "acender", "acender a luz", "luz"],
-                     "💡 Executando: Ligando as luzes do quarto..."),
-    "horas":       (["horas", "que horas"],
-                     "⏰ Executando: Buscando o horário atual do sistema..."),
-    "cancelar":    (["desligar", "cancelar"],
-                     "😴 Executando: Cancelado."),
+    "acender_luz": (["ligar a luz", "acender", "acender a luz", "luz"], acender_luz),
+    "apagar_luz":  (["apagar a luz", "desligar a luz"], apagar_luz),
+    "horas":       (["horas", "que horas"], mostrar_horas),
+    "cancelar":    (["desligar", "cancelar"], cancelar),
 }
 
 VOCAB_COMANDOS = [frase for gatilhos, _ in COMANDOS.values() for frase in gatilhos]
 
-led = LED(17)
+
 def identificar_comando(texto):
-    for nome, (gatilhos, msg) in COMANDOS.items():
+    for nome, (gatilhos, acao) in COMANDOS.items():
         for gatilho in gatilhos:
             if gatilho in texto:
-                return nome, msg
+                return nome, acao
     return None, None
 
 
@@ -41,11 +63,11 @@ def main():
                     print(f"💤 Ouvido (Ignorado): '{texto}'")
             else:
                 print(f"🧠 [Comando Recebido]: '{texto}'")
-                _, msg = identificar_comando(texto)
-                if _ == "acender_luz":
-                    LED.on()
-                    
-                print(msg if msg else "❓ Comando não reconhecido.")
+                nome, acao = identificar_comando(texto)
+                if acao:
+                    acao()
+                else:
+                    print("❓ Comando não reconhecido.")
 
                 print("-" * 60)
                 print("🎙️ Modo de Espera. Diga 'ativar'.")
