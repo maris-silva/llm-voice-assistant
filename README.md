@@ -31,7 +31,7 @@ llm-voice-assistant/
 │   └── print_text.py      # Gera de logs de depuração
 
 ├── tests/
-│   └── moduleX_test.py    # Scripts de testes unitários e de integração
+│   └──     # Scripts de testes unitários e de integração
 ├── .gitignore             # Arquivos ignorados pelo repositório Git
 ├── LICENSE                # Licença do projeto
 └── README.md              # Visão geral e guia rápido de uso do projeto
