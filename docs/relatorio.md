@@ -46,6 +46,7 @@ A Tabela 1 detalha os Requisitos Funcionais (RF) e Não Funcionais (RNF) definid
 | **RF02** | O sistema deve mapear uma intenção de voz (ex: `"Luz"`) para acionar um componente de hardware periférico conectado (ex: controle de iluminação). | **RF** |
 | **RF03** | Reconhecer a palavra de desativação (ex: `"Desligar"`) executando a inferência de áudio 100% localmente no hardware, e acionar modo "escuta inativa". | **RF** |
 | **RF04** | Tocar arquivos de áudio locais (ex: `"Tocar Olivia Rodrigo"`) acionando o player nativo via saída P2 ou HDMI ao reconhecer o comando específico. | **RF** |
+| **RF05** | Indicar as horas no momento atual ao reconhecer o comando específico. (ex: `"Horas"`) | **RF** |
 | **RNF01** | **Eficiência:** O intervalo de tempo entre o fim da fala do usuário e o início da ação do sistema não deve ultrapassar **2,5 segundos**. | **RNF** |
 | **RNF02** | **Confiabilidade:** Deve apresentar uma taxa de acerto no reconhecimento do comando de pelo menos **50%** em um ambiente com ruído moderado. | **RNF** |
 | **RNF03** | **Usabilidade:** Deve fornecer indicativos perceptíveis e imediatos (visuais ou sonoros) em até **500ms** para três estados: `"Ouvindo"`, `"Processando"` e `"Erro de Compreensão"`. | **RNF** |
@@ -82,32 +83,74 @@ O comportamento do sistema é regido por uma Máquina de Estados:
 * **Dispositivo de Captura e Saída de Som:** Headset USB.
 
 ---
-
 ## 6. Metodologia de Desenvolvimento
+
+A metodologia adotada para a construção do assistente de voz offline fundamentou-se nos princípios já trabalhados anteriormente em laboratório de **desenvolvimento iterativo e incremental**, alinhados a boas práticas de **engenharia de software** (como os princípios SOLID). O foco principal da estrutura de código em `src/` foi garantir a **modularização**, o **desacoplamento de bibliotecas externas** e a **reutilização de componentes**, viabilizando a adição progressiva de novas funcionalidades ao longo das semanas de desenvolvimento sem a necessidade de refatorações destrutivas, de forma que seja possível adicionar o máximo de funcionalidades possível até a entrega final.
 
 ---
 
-## 7. Planos de Testes e Resultados Obtidos
+### 6.1 Estrutura Modular e Desacoplamento do Código
 
-### 7.1 Plano de Testes Planejados
-* **Teste T01 (RF01 & RNF03)**: Validação do tempo de resposta do KWS ("Oi Assistente") e acionamento do LED de feedback visual em menos de 500ms.
-* **Teste T02 (RF02 & RF04)**: Teste de precisão do acionamento de hardware (Lâmpada ON/OFF) e execução correta das faixas de áudio.
-* **Teste T03 (RNF01)**: Medição de latência total entre o encerramento do comando de voz e a execução da ação (Target < 2,5s).
-* **Teste T04 (RNF02)**: Teste de Confiabilidade com 100 emissões de comando em ambiente com ruído de fundo moderado (Target > 50% de acertos).
+A arquitetura de software implementada no diretório `src/` isolou as responsabilidades do sistema em módulos independentes. Essa abordagem viabilizou a abstração dependências de bibliotecas de terceiros, garantindo as seguintes vantagens arquiteturais:
 
-### 7.2 Tabela de Registro de Resultados
-*(Esta seção será preenchida conforme a execução dos testes práticos)*
+* **Abstração das Engines de Áudio:** Os motores de inferência local (*Vosk*, etc.) não estão acoplados diretamente ao fluxo principal do sistema. Em vez disso, são encapsulados por interfaces/wrappers específicos. Caso seja necessário substituir a biblioteca de *Speech-to-Text* por outra alternativa mais leve ou robusta, a mudança fica restrita ao módulo correspondente, mantendo o restante da aplicação intocado.
+* **Isolamento da Camada de Hardware (GPIO Driver):** O controle dos atuadores (iluminação/módulo relé e LEDs de status) e sensores (botão físico) é intermediado por uma camada de controle que abstrai as chamadas diretas de bibliotecas de hardware (como `gpiozero`). Essa segregação foi definida também de modo a facilitar a realização de testes unitários durante o isolamento de falhas.
+* **Desencadeamento por Eventos e Máquina de Estados:** O orquestrador central do sistema (`main.py` / controlador) gerencia as transições entre estados (*Escuta Passiva*, *Escuta Ativa*, *Processando* e *Repouso*) sem se preocupar com os detalhes de baixo nível da captura do sinal do áudio USB ou do controle de periféricos ligados à placa.
 
-| ID Teste | Parâmetro Avaliado | Meta | Resultado Medido | Status |
-| :--- | :--- | :---: | :---: | :---: |
-| T01 | Tempo de feedback do LED ("Ouvindo") | < 500ms | *A preencher* | *Pendente* |
-| T02 | Execução do comando "Aumentar Luz" | 100% Sucesso | *A preencher* | *Pendente* |
-| T03 | Latência de processamento STT + Ação | < 2,5s | *A preencher* | *Pendente* |
-| T04 | Taxa de acerto em ambiente ruidoso | >= 50% | *A preencher* | *Pendente* |
+---
+### 6.2 Fluxo Iterativo de Implementação
 
+O ciclo de desenvolvimento do repositório foi organizado em fases incrementais e orientadas a testes. A estratégia permitiu validar o comportamento do sistema camada por camada, combinando a construção de **módulos isolados** com a execução de **testes unitários automatizados** e **testes de não-regressão** para garantir que a inclusão de novas funcionalidades não quebrasse os recursos já validados.
+
+1. **Módulo STT de Captura e Testes Unitários de Áudio:**
+   * Desenvolvimento isolado do módulo de captura do microfone USB.
+
+2. **Módulo de Controle de Periféricos via GPIO (Luz/LED) e Testes de Atuação:**
+   * Desenvolvimento do módulo desacoplado de hardware para manipulação de pinos GPIO (para o caso do LED).
+
+3. **Módulo Orquestrador Central do Sistema:**
+   * Integração do motor de *Speech-to-Text* (STT) com vocabulário restrito e parser de *string matching* para o entrar em estado de Escuta e ligar o LED.
+
+4. **Retorno de Horário Atual:** 
+   * Extensão incremental do orquestrador para suportar a função utilitária de horário atual via comando `"Horas"`.
+
+5. **Tocar músicas pré-definidas:** 
+    * Desenvolvimento de módulo de controle de hardware também asbtraído para tocar a música escolhida pelo usuário por meio do comando (`"Tocar {música}"`).
+
+6. **Desenvolvimento de interface de depuração:**
+    * Execução de **testes de não-regressão** automatizados para assegurar que a adição da leitura do relógio e faixas musicais não alterou a assertividade dos comandos de iluminação criados anteriormente.
+
+A cada passo avançado, o grupo planeja adicionar testes unitários automatizados ao repositório, de forma a permitir validações rápidas de funcionamento, e também adicionar **testes de não-regressão**, os quais serão atualizados gradativa e iterativamente a partir do Passo 4 para cada nova funcionalidade que conseguirmos desenvolver.
+
+7. **Documentação Final e Realização de Testes Planejados:**
+    * Com o sistema completo desenvolvido, realizaremos um último grupo de testes, seguindo a a Tabela de Testes Planejados explicitada abaixo, para documentar os resultados e o desempenho do sistema no relatório 
+
+---
+## 7. Testes Planejados
+
+### 7.1 Testes Planejados
+* **Teste T01 (RF01 & RNF03)**: Validação do tempo de resposta de (`"Ativar"`) e (`"Desligar"`) com feedback visual em menos de 500ms.
+* **Teste T02 (RF02)**: Teste de precisão do acionamento de hardware (LED ligado e desligado).
+* **Teste T03 (RF04)**: Teste de execução correta das faixas de áudio pré-definidas.
+* **Teste T04 (RF05)**: Teste de display correto do horário atual com o comando (`"Horas"`).
+* **Teste T05 (RNF01)**: Cronometragem de latência total entre o encerramento do comando de voz e a execução da ação para diversas amostragens (desejado menor que 2,5s). 
+* **Teste T06 (RNF02)**: Teste de Confiabilidade também com diversas emissões de comando (~50) em ambiente com ruído de fundo moderado (desejado pelo menos 50% de acertos).
+
+### 7.2 Resultados Observados
+*(Esta seção será preenchida incrementalmente)*
+
+| ID Teste | Parâmetro Avaliado | Requisitos Associados | Meta | Resultado Medido | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| **T01** | Tempo de resposta para palavras de ativação/desativação (`"Ativar"` e `"Desligar"`) e indicação de feedback visual | RF01, RNF03 | < 500 ms | *A preencher* | *Pendente* |
+| **T02** | Precisão do acionamento de hardware do periférico (LED Ligar/Desligar) | RF02 | 100% de sucesso nas acionaçoes | *A preencher* | *Pendente* |
+| **T03** | Execução e reprodução correta das faixas de áudio pré-definidas | RF04 | 100% de execução correta | *A preencher* | *Pendente* |
+| **T04** | Exibição/retorno correto do horário atual após comando de voz (`"Horas"`) | RF05 | 100% de precisão | *A preencher* | *Pendente* |
+| **T05** | Latência total entre o fim do comando de voz e a execução da ação (amostragem contínua) | RNF01 | < 2,5 s | *A preencher* | *Pendente* |
+| **T06** | Taxa de acerto/confiabilidade no reconhecimento de comandos em ambiente ruidoso (~50 emissões) | RNF02 | >= 50% de acertos | *A preencher* | *Pendente* |
 ---
 
 ## 8. Conclusões e Trabalhos Futuros
+*(Esta seção será preenchida futuramente)*
 
 ### 8.1 Considerações Finais
 
@@ -116,7 +159,6 @@ O comportamento do sistema é regido por uma Máquina de Estados:
 ---
 
 ## Referências Bibliográficas
-
 * 
 *
 *
