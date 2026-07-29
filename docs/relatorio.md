@@ -56,12 +56,120 @@ A Tabela 1 detalha os Requisitos Funcionais (RF) e Não Funcionais (RNF) definid
 ## 4. Arquitetura do Sistema
 
 ### 4.1 Arquitetura Física
-A arquitetura de hardware é centralizada na placa **Raspberry Pi 3 Model XXXXX **. 
+A arquitetura de hardware é centralizada na placa Raspberry Pi 3 Model B, atuando como a unidade de processamento responsável por rodar o sistema operacional, executar o modelo de inferência de áudio localmente e orquestrar os periféricos. A parte física é composta pelos seguintes elementos:
 
+* **Entrada/Saída (I/O) de Áudio:** um headset responsável pela captação da voz do usuário (sinal de áudio) e pelo retorno sonoro (como a reprodução de faixas musicais locais).
+* **Iluminação:** um circuito simples de LED conectado fisicamente ao pino **GPIO 17** da Raspberry Pi, protegido por um resistor limitador de corrente (220Ω a 330Ω) conectado ao GND (terra). 
+* **Alimentação:** fonte de alimentação padrão de 5V adequada para a Raspberry Pi 3, garantindo corrente suficiente para alimentar as portas USB e os pinos GPIO sem queda de tensão durante o processamento da CPU.
+* **Processamento:** a CPU ARM da Raspberry Pi, que executa localmente o modelo acústico do Vosk (`vosk-model-small-pt-0.3`) sem necessidade de conexão externa.
+  
 ### 4.2 Arquitetura de Software e Modelagem Comportamental
-
+O software foi desenhado em uma arquitetura modular em camadas, isolando a lógica de negócios da manipulação de hardware. 
+* **Camada de Captura e Speech-To-Text (`stt.py`):** encapsula a biblioteca *Vosk* e o *sounddevice*. Utiliza uma fila (`queue.Queue`) e *callbacks* de áudio para processar o fluxo do microfone. Possui otimização dinâmica de vocabulário (`KaldiRecognizer`), reduzindo o custo computacional ao limitar as palavras esperadas de acordo com o estado do assistente.
+* **Camada de Orquestração (`main.py`):** Instancia o STT através de um *Context Manager* (`with SpeechToText() as stt`), gerencia a máquina de estados (variável `modo_comando`) e mapeia as frases transcritas para funções diretas de controle de hardware (`gpiozero.LED`) e utilitários de sistema (`datetime`).
+* **Camada de Hardware (`LED.py`):** encapsula a biblioteca `gpiozero`, recebendo chamadas do orquestrador para alterar o nível lógico do pino GPIO 17 e acionar o circuito do LED.
+  
 #### 4.2.1 Máquina de Estados (Diagrama de Transição de Estados)
-O comportamento do sistema é regido por uma Máquina de Estados:
+O comportamento do sistema alterna os vocabulários do motor de reconhecimento para economizar processamento e evitar falsos positivos. O orquestrador central transita entre os seguintes estados:
+
+1. **Estado 1: Modo de Espera / Escuta Passiva**
+   * **Ação:** O vocabulário do reconhecedor Kaldi é restrito exclusivamente à *wake word* (`["ativar"]`). Qualquer outro som é ignorado.
+   * **Transição:** Ao reconhecer a palavra `"ativar"`, o sistema emite um aviso no terminal, altera a flag `modo_comando` para `True` e transita para o *modo de comando*.
+
+2. **Estado 2: Modo de Comando / Escuta Ativa**
+   * **Ação:** O vocabulário do STT é expandido instantaneamente para englobar todas as palavras contidas no dicionário de intenções (`VOCAB_COMANDOS`).
+   * **Transição:** O sistema aguarda a próxima fala transcrita e transita para o *Processamento da Intenção*.
+
+3. **Estado 3: Processamento e Ação**
+   * **Ação:** A função `identificar_comando(texto)` varre o dicionário de gatilhos. Se houver correspondência, executa a ação atrelada (ex: `acender_luz()`, `mostrar_horas()`, `cancelar()`). Se não houver, informa "Comando não reconhecido".
+   * **Transição:** Independentemente do sucesso da ação, a flag `modo_comando` retorna para `False`, o vocabulário é novamente restrito à *wake word* e o sistema retorna ao *Estado 1*.
+---
+### 4.3 Diagramas da Arquitetura
+
+O GitHub suporta a renderização nativa dos diagramas abaixo (Mermaid).
+
+#### Diagrama de Blocos (Arquitetura do Código)
+Estrutura lógica refletindo a injeção de dependências e a distribuição de responsabilidades nos scripts Python.
+
+```mermaid
+flowchart TD
+    subgraph Hardware
+        MIC[Microfone USB]
+        LED_Fisico[LED Físico no Pino 17]
+    end
+
+    subgraph Software
+        STT(Módulo STT: stt.py)
+        ORQ{Orquestrador: main.py}
+        MAP[Dicionário de Comandos]
+        GPIO[Controle GPIO]
+        TIME[Relógio do Sistema]
+    end
+
+    MIC -->|Áudio Bruto| STT
+    STT -->|Texto Transcrito| ORQ
+    
+    ORQ -->|Atualiza Vocabulário| STT
+    ORQ -->|Identifica Ação| MAP
+    
+    MAP -->|Comando de Luz| GPIO
+    MAP -->|Comando de Hora| TIME
+    
+    GPIO -->|Nível Lógico| LED_Fisico
+```
+### Diagrama de Máquina de Estados 
+Representação visual baseada na variável lógica `modo_comando` e nas atualizações de vocabulário do `Vosk`.
+
+```mermaid
+stateDiagram-v2
+    [*] --> ModoEspera : Inicialização
+    
+    ModoEspera --> ModoComando : Wake Word ("ativar")
+    note left of ModoEspera
+        modo_comando = False
+        Vocabulário: ["ativar"]
+    end note
+    
+    ModoComando --> Processamento : Texto transcrito recebido
+    note right of ModoComando
+        modo_comando = True
+        Vocabulário: VOCAB_COMANDOS
+    end note
+    
+    Processamento --> ModoEspera : Ação concluída ou Falha
+    note right of Processamento
+        Busca correspondência 
+        Executa Ação
+    end note
+```
+
+### Diagrama de sequência
+Fluxo temporal detalhado demonstrando a alteração de contexto entre o usuário, o orquestrador e o hardware.
+
+```mermaid
+sequenceDiagram
+    actor U as Usuário
+    participant STT as stt.py (SpeechToText)
+    participant M as main.py
+    participant HW as Hardware (LED/Terminal)
+
+    M->>STT: set_vocabulario(["ativar"])
+    U->>STT: Diz: "Ativar"
+    STT->>M: Yield: "ativar"
+    
+    M->>HW: Print: 🔔 [Alexa]: Diga o comando...
+    M->>STT: set_vocabulario(VOCAB_COMANDOS)
+    
+    U->>STT: Diz: "Ligar a luz"
+    STT->>M: Yield: "ligar a luz"
+    
+    M->>M: identificar_comando("ligar a luz")
+    M->>M: Executa acender_luz()
+    M->>HW: led.on() (Acende LED no pino 17)
+    
+    M->>STT: set_vocabulario(["ativar"])
+    M->>HW: Print: 🎙️ Modo de Espera...
+```
 
 ---
 
