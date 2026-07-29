@@ -5,6 +5,9 @@ import json
 import queue
 import sounddevice as sd
 from vosk import Model, KaldiRecognizer, SetLogLevel
+from gpiozero import LED, Button
+
+led = LED(17)  
 
 # Silencia os logs internos do Kaldi/Vosk (deixam o terminal mais limpo
 # e evitam overhead de I/O desnecessário na RPi3)
@@ -110,6 +113,10 @@ try:
                     print(f"🧠 [Comando Recebido]: '{texto}'")
 
                     nome, msg = identificar_comando(texto)
+                    
+                    if nome == "acender_luz":
+                        led.on() 
+
                     if msg:
                         print(msg)
                     else:
