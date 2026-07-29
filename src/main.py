@@ -1,5 +1,5 @@
 from stt import SpeechToText
-
+from gpiozero import LED
 WAKE_WORD = "ativar"
 
 COMANDOS = {
@@ -13,7 +13,7 @@ COMANDOS = {
 
 VOCAB_COMANDOS = [frase for gatilhos, _ in COMANDOS.values() for frase in gatilhos]
 
-
+led = LED(17)
 def identificar_comando(texto):
     for nome, (gatilhos, msg) in COMANDOS.items():
         for gatilho in gatilhos:
@@ -42,6 +42,9 @@ def main():
             else:
                 print(f"🧠 [Comando Recebido]: '{texto}'")
                 _, msg = identificar_comando(texto)
+                if _ == "acender_luz":
+                    LED.on()
+                    
                 print(msg if msg else "❓ Comando não reconhecido.")
 
                 print("-" * 60)
