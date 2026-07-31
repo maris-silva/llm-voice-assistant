@@ -56,12 +56,120 @@ A Tabela 1 detalha os Requisitos Funcionais (RF) e Não Funcionais (RNF) definid
 ## 4. Arquitetura do Sistema
 
 ### 4.1 Arquitetura Física
-A arquitetura de hardware é centralizada na placa **Raspberry Pi 3 Model XXXXX **. 
+A arquitetura de hardware é centralizada na placa Raspberry Pi 3 Model B, atuando como a unidade de processamento responsável por rodar o sistema operacional, executar o modelo de inferência de áudio localmente e orquestrar os periféricos. A parte física é composta pelos seguintes elementos:
 
+* **Entrada/Saída (I/O) de Áudio:** um headset responsável pela captação da voz do usuário (sinal de áudio) e pelo retorno sonoro (como a reprodução de faixas musicais locais).
+* **Iluminação:** um circuito simples de LED conectado fisicamente ao pino **GPIO 17** da Raspberry Pi, protegido por um resistor limitador de corrente (220Ω a 330Ω) conectado ao GND (terra). 
+* **Alimentação:** fonte de alimentação padrão de 5V adequada para a Raspberry Pi 3, garantindo corrente suficiente para alimentar as portas USB e os pinos GPIO sem queda de tensão durante o processamento da CPU.
+* **Processamento:** a CPU ARM da Raspberry Pi, que executa localmente o modelo acústico do Vosk (`vosk-model-small-pt-0.3`) sem necessidade de conexão externa.
+  
 ### 4.2 Arquitetura de Software e Modelagem Comportamental
-
+O software foi desenhado em uma arquitetura modular em camadas, isolando a lógica de negócios da manipulação de hardware. 
+* **Camada de Captura e Speech-To-Text (`stt.py`):** encapsula a biblioteca *Vosk* e o *sounddevice*. Utiliza uma fila (`queue.Queue`) e *callbacks* de áudio para processar o fluxo do microfone. Possui otimização dinâmica de vocabulário (`KaldiRecognizer`), reduzindo o custo computacional ao limitar as palavras esperadas de acordo com o estado do assistente.
+* **Camada de Orquestração (`main.py`):** Instancia o STT através de um *Context Manager* (`with SpeechToText() as stt`), gerencia a máquina de estados (variável `modo_comando`) e mapeia as frases transcritas para funções diretas de controle de hardware (`gpiozero.LED`) e utilitários de sistema (`datetime`).
+* **Camada de Hardware (`LED.py`):** encapsula a biblioteca `gpiozero`, recebendo chamadas do orquestrador para alterar o nível lógico do pino GPIO 17 e acionar o circuito do LED.
+  
 #### 4.2.1 Máquina de Estados (Diagrama de Transição de Estados)
-O comportamento do sistema é regido por uma Máquina de Estados:
+O comportamento do sistema alterna os vocabulários do motor de reconhecimento para economizar processamento e evitar falsos positivos. O orquestrador central transita entre os seguintes estados:
+
+1. **Estado 1: Modo de Espera / Escuta Passiva**
+   * **Ação:** O vocabulário do reconhecedor Kaldi é restrito exclusivamente à *wake word* (`["ativar"]`). Qualquer outro som é ignorado.
+   * **Transição:** Ao reconhecer a palavra `"ativar"`, o sistema emite um aviso no terminal, altera a flag `modo_comando` para `True` e transita para o *modo de comando*.
+
+2. **Estado 2: Modo de Comando / Escuta Ativa**
+   * **Ação:** O vocabulário do STT é expandido instantaneamente para englobar todas as palavras contidas no dicionário de intenções (`VOCAB_COMANDOS`).
+   * **Transição:** O sistema aguarda a próxima fala transcrita e transita para o *Processamento da Intenção*.
+
+3. **Estado 3: Processamento e Ação**
+   * **Ação:** A função `identificar_comando(texto)` varre o dicionário de gatilhos. Se houver correspondência, executa a ação atrelada (ex: `acender_luz()`, `mostrar_horas()`, `cancelar()`). Se não houver, informa "Comando não reconhecido".
+   * **Transição:** Independentemente do sucesso da ação, a flag `modo_comando` retorna para `False`, o vocabulário é novamente restrito à *wake word* e o sistema retorna ao *Estado 1*.
+---
+### 4.3 Diagramas da Arquitetura
+
+O GitHub suporta a renderização nativa dos diagramas abaixo (Mermaid).
+
+#### Diagrama de Blocos (Arquitetura do Código)
+Estrutura lógica refletindo a injeção de dependências e a distribuição de responsabilidades nos scripts Python.
+
+```mermaid
+flowchart TD
+    subgraph Hardware
+        MIC[Microfone USB]
+        LED_Fisico[LED Físico no Pino 17]
+    end
+
+    subgraph Software
+        STT(Módulo STT: stt.py)
+        ORQ{Orquestrador: main.py}
+        MAP[Dicionário de Comandos]
+        GPIO[Controle GPIO]
+        TIME[Relógio do Sistema]
+    end
+
+    MIC -->|Áudio Bruto| STT
+    STT -->|Texto Transcrito| ORQ
+    
+    ORQ -->|Atualiza Vocabulário| STT
+    ORQ -->|Identifica Ação| MAP
+    
+    MAP -->|Comando de Luz| GPIO
+    MAP -->|Comando de Hora| TIME
+    
+    GPIO -->|Nível Lógico| LED_Fisico
+```
+### Diagrama de Máquina de Estados 
+Representação visual baseada na variável lógica `modo_comando` e nas atualizações de vocabulário do `Vosk`.
+
+```mermaid
+stateDiagram-v2
+    [*] --> ModoEspera : Inicialização
+    
+    ModoEspera --> ModoComando : Wake Word ("ativar")
+    note left of ModoEspera
+        modo_comando = False
+        Vocabulário: ["ativar"]
+    end note
+    
+    ModoComando --> Processamento : Texto transcrito recebido
+    note right of ModoComando
+        modo_comando = True
+        Vocabulário: VOCAB_COMANDOS
+    end note
+    
+    Processamento --> ModoEspera : Ação concluída ou Falha
+    note right of Processamento
+        Busca correspondência 
+        Executa Ação
+    end note
+```
+
+### Diagrama de sequência
+Fluxo temporal detalhado demonstrando a alteração de contexto entre o usuário, o orquestrador e o hardware.
+
+```mermaid
+sequenceDiagram
+    actor U as Usuário
+    participant STT as stt.py (SpeechToText)
+    participant M as main.py
+    participant HW as Hardware (LED/Terminal)
+
+    M->>STT: set_vocabulario(["ativar"])
+    U->>STT: Diz: "Ativar"
+    STT->>M: Yield: "ativar"
+    
+    M->>HW: Print: 🔔 [Alexa]: Diga o comando...
+    M->>STT: set_vocabulario(VOCAB_COMANDOS)
+    
+    U->>STT: Diz: "Ligar a luz"
+    STT->>M: Yield: "ligar a luz"
+    
+    M->>M: identificar_comando("ligar a luz")
+    M->>M: Executa acender_luz()
+    M->>HW: led.on() (Acende LED no pino 17)
+    
+    M->>STT: set_vocabulario(["ativar"])
+    M->>HW: Print: 🎙️ Modo de Espera...
+```
 
 ---
 
@@ -97,6 +205,65 @@ A arquitetura de software implementada no diretório `src/` isolou as responsabi
 * **Isolamento da Camada de Hardware (GPIO Driver):** O controle dos atuadores (iluminação/módulo relé e LEDs de status) e sensores (botão físico) é intermediado por uma camada de controle que abstrai as chamadas diretas de bibliotecas de hardware (como `gpiozero`). Essa segregação foi definida também de modo a facilitar a realização de testes unitários durante o isolamento de falhas.
 * **Desencadeamento por Eventos e Máquina de Estados:** O orquestrador central do sistema (`main.py` / controlador) gerencia as transições entre estados (*Escuta Passiva*, *Escuta Ativa*, *Processando* e *Repouso*) sem se preocupar com os detalhes de baixo nível da captura do sinal do áudio USB ou do controle de periféricos ligados à placa.
 
+
+#### Diagrama de Modulariação do Código
+
+
+```mermaid
+graph TD
+    %% Estilos das caixas
+    classDef core fill:#2b3a42,stroke:#3b4d57,stroke-width:2px,color:#fff;
+    classDef wrapper fill:#3f5b50,stroke:#4a6b5e,stroke-width:2px,color:#fff;
+    classDef externo fill:#5c3a21,stroke:#6b4427,stroke-width:2px,color:#fff;
+    classDef hardware fill:#8c7b6c,stroke:#a39281,stroke-width:2px,color:#fff;
+
+    %% Camada Core (Orquestrador)
+    subgraph Camada Core
+        O["<b>Orquestrador Central</b><br>main.py"]:::core
+        
+        subgraph Máquina de Estados
+            EP("Escuta Passiva")
+            EA("Escuta Ativa")
+            PR("Processando")
+            RE("Repouso")
+        end
+        O --- EP & EA & PR & RE
+    end
+
+    %% Camada de Abstração
+    subgraph Camada de Abstração e Interfaces
+        STT_W["Wrapper / Interface<br>Engine de Áudio (STT)"]:::wrapper
+        GPIO_W["Driver GPIO<br>Camada de Controle"]:::wrapper
+    end
+
+    %% Injeção / Chamadas
+    O -->|Desencadeia Eventos| STT_W
+    O -->|Controla Atuadores/Sensores| GPIO_W
+
+    %% Bibliotecas de Terceiros
+    subgraph Dependências Externas
+        VOSK["Motor Local<br>Vosk / etc."]:::externo
+        GPIOZERO["Biblioteca Baixo Nível<br>gpiozero"]:::externo
+    end
+
+    STT_W -.->|Isola dependência| VOSK
+    GPIO_W -.->|Isola dependência| GPIOZERO
+
+    %% Hardware
+    subgraph Camada Física / Hardware
+        AUDIO["Áudio USB / Microfone"]:::hardware
+        LED["LEDs / Relé de Iluminação"]:::hardware
+        BOTAO["Botão Físico"]:::hardware
+        SPEAKER["Saída de Áudio"]:::hardware
+    end
+
+    VOSK -.- AUDIO
+    GPIOZERO === LED
+    GPIOZERO === BOTAO
+    GPIOZERO === SPEAKER
+```
+
+
 ---
 ### 6.2 Fluxo Iterativo de Implementação
 
@@ -124,6 +291,49 @@ A cada passo avançado, o grupo planeja adicionar testes unitários automatizado
 
 7. **Documentação Final e Realização de Testes Planejados:**
     * Com o sistema completo desenvolvido, realizaremos um último grupo de testes, seguindo a a Tabela de Testes Planejados explicitada abaixo, para documentar os resultados e o desempenho do sistema no relatório 
+
+
+#### Diagrama de Método de Desenvolvimento
+
+
+```mermaid
+flowchart TD
+    %% Estilos visuais
+    classDef fase fill:#1f4e5b,stroke:#2b6b7d,stroke-width:2px,color:#fff,rx:5px,ry:5px;
+    classDef teste fill:#9b59b6,stroke:#8e44ad,stroke-width:2px,color:#fff;
+    classDef final fill:#27ae60,stroke:#2ecc71,stroke-width:2px,color:#fff;
+
+    INICIO(((Início))) --> L1
+
+    %% Primeira linha horizontal (Esquerda para Direita)
+    subgraph L1 [1. Ciclo de Desenvolvimento Base]
+        direction LR
+        F1["Fase 1<br>Módulo STT"]:::fase --> T1{"Testes<br>Unitários"}:::teste
+        T1 -->|Validado| F2["Fase 2<br>GPIO (LED)"]:::fase
+        F2 --> T2{"Testes de<br>Atuação"}:::teste
+        T2 -->|Validado| F3["Fase 3<br>Orquestrador"]:::fase
+    end
+
+    L1 --> L2
+
+    %% Segunda linha horizontal (Esquerda para Direita)
+    subgraph L2 [2. Ciclo Incremental e Não-Regressão]
+        direction LR
+        F4["Fase 4<br>Horário Atual"]:::fase --> NR1{"Testes de<br>Não-Regressão"}:::teste
+        NR1 -->|Validado| F5["Fase 5<br>Tocar Músicas"]:::fase
+        F5 --> NR2{"Testes de<br>Não-Regressão"}:::teste
+        NR2 -->|Validado| F6["Fase 6<br>Depuração"]:::fase
+    end
+
+    L2 --> L3
+
+    %% Terceira linha horizontal
+    subgraph L3 [3. Encerramento]
+        direction LR
+        F7["Fase 7<br>Doc. e Testes Finais"]:::final --> FIM(((Fim)))
+    end
+```
+
 
 ---
 ## 7. Testes Planejados
