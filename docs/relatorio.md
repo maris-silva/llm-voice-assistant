@@ -297,36 +297,41 @@ A cada passo avançado, o grupo planeja adicionar testes unitários automatizado
 
 
 ```mermaid
-graph TD
-    %% Estilos
+flowchart TD
+    %% Estilos visuais
     classDef fase fill:#1f4e5b,stroke:#2b6b7d,stroke-width:2px,color:#fff,rx:5px,ry:5px;
     classDef teste fill:#9b59b6,stroke:#8e44ad,stroke-width:2px,color:#fff;
     classDef final fill:#27ae60,stroke:#2ecc71,stroke-width:2px,color:#fff;
 
-    INICIO((Início do<br>Projeto)) --> F1
+    INICIO(((Início))) --> L1
 
-    subgraph Ciclo Iterativo e Incremental orientado a Testes
-        F1["<b>Fase 1</b><br>Módulo STT de Captura de Áudio"]:::fase --> T1{"Testes<br>Unitários"}:::teste
-        T1 -->|Validado| F2
-        
-        F2["<b>Fase 2</b><br>Módulo Controle GPIO (Luz/LED)"]:::fase --> T2{"Testes de<br>Atuação"}:::teste
-        T2 -->|Validado| F3
-        
-        F3["<b>Fase 3</b><br>Orquestrador Central<br>(STT + String Matching + Estados)"]:::fase --> F4
-        
-        F4["<b>Fase 4</b><br>Funcionalidade: Horário Atual"]:::fase --> NR1{"Testes de<br>Não-Regressão"}:::teste
-        
-        NR1 -->|Garante Fases 1 a 3| F5
-        
-        F5["<b>Fase 5</b><br>Funcionalidade: Tocar Músicas"]:::fase --> NR2{"Testes de<br>Não-Regressão"}:::teste
-        
-        NR2 -->|Garante Fases Anteriores| F6
-        
-        F6["<b>Fase 6</b><br>Interface de Depuração"]:::fase
+    %% Primeira linha horizontal (Esquerda para Direita)
+    subgraph L1 [1. Ciclo de Desenvolvimento Base]
+        direction LR
+        F1["Fase 1<br>Módulo STT"]:::fase --> T1{"Testes<br>Unitários"}:::teste
+        T1 -->|Validado| F2["Fase 2<br>GPIO (LED)"]:::fase
+        F2 --> T2{"Testes de<br>Atuação"}:::teste
+        T2 -->|Validado| F3["Fase 3<br>Orquestrador"]:::fase
     end
 
-    F6 --> F7["<b>Fase 7</b><br>Documentação Final e<br>Testes Planejados"]:::final
-    F7 --> FIM(((Fim)))
+    L1 --> L2
+
+    %% Segunda linha horizontal (Esquerda para Direita)
+    subgraph L2 [2. Ciclo Incremental e Não-Regressão]
+        direction LR
+        F4["Fase 4<br>Horário Atual"]:::fase --> NR1{"Testes de<br>Não-Regressão"}:::teste
+        NR1 -->|Validado| F5["Fase 5<br>Tocar Músicas"]:::fase
+        F5 --> NR2{"Testes de<br>Não-Regressão"}:::teste
+        NR2 -->|Validado| F6["Fase 6<br>Depuração"]:::fase
+    end
+
+    L2 --> L3
+
+    %% Terceira linha horizontal
+    subgraph L3 [3. Encerramento]
+        direction LR
+        F7["Fase 7<br>Doc. e Testes Finais"]:::final --> FIM(((Fim)))
+    end
 ```
 
 
