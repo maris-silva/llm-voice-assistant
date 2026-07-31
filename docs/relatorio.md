@@ -205,6 +205,65 @@ A arquitetura de software implementada no diretório `src/` isolou as responsabi
 * **Isolamento da Camada de Hardware (GPIO Driver):** O controle dos atuadores (iluminação/módulo relé e LEDs de status) e sensores (botão físico) é intermediado por uma camada de controle que abstrai as chamadas diretas de bibliotecas de hardware (como `gpiozero`). Essa segregação foi definida também de modo a facilitar a realização de testes unitários durante o isolamento de falhas.
 * **Desencadeamento por Eventos e Máquina de Estados:** O orquestrador central do sistema (`main.py` / controlador) gerencia as transições entre estados (*Escuta Passiva*, *Escuta Ativa*, *Processando* e *Repouso*) sem se preocupar com os detalhes de baixo nível da captura do sinal do áudio USB ou do controle de periféricos ligados à placa.
 
+
+#### Diagrama de Modulariação do Código
+
+
+```mermaid
+graph TD
+    %% Estilos das caixas
+    classDef core fill:#2b3a42,stroke:#3b4d57,stroke-width:2px,color:#fff;
+    classDef wrapper fill:#3f5b50,stroke:#4a6b5e,stroke-width:2px,color:#fff;
+    classDef externo fill:#5c3a21,stroke:#6b4427,stroke-width:2px,color:#fff;
+    classDef hardware fill:#8c7b6c,stroke:#a39281,stroke-width:2px,color:#fff;
+
+    %% Camada Core (Orquestrador)
+    subgraph Camada Core
+        O[<b>Orquestrador Central</b><br>main.py]:::core
+        
+        subgraph Máquina de Estados
+            EP(Escuta Passiva)
+            EA(Escuta Ativa)
+            PR(Processando)
+            RE(Repouso)
+        end
+        O --- EP & EA & PR & RE
+    end
+
+    %% Camada de Abstração
+    subgraph Camada de Abstração e Interfaces
+        STT_W[Wrapper / Interface<br>Engine de Áudio (STT)]:::wrapper
+        GPIO_W[Driver GPIO<br>Camada de Controle]:::wrapper
+    end
+
+    %% Injeção / Chamadas
+    O -->|Desencadeia Eventos| STT_W
+    O -->|Controla Atuadores/Sensores| GPIO_W
+
+    %% Bibliotecas de Terceiros
+    subgraph Dependências Externas
+        VOSK[Motor Local<br>Vosk / etc.]:::externo
+        GPIOZERO[Biblioteca Baixo Nível<br>gpiozero]:::externo
+    end
+
+    STT_W -.->|Isola dependência| VOSK
+    GPIO_W -.->|Isola dependência| GPIOZERO
+
+    %% Hardware
+    subgraph Camada Física / Hardware
+        AUDIO[Áudio USB / Microfone]:::hardware
+        LED[LEDs / Relé de Iluminação]:::hardware
+        BOTAO[Botão Físico]:::hardware
+        SPEAKER[Saída de Áudio]:::hardware
+    end
+
+    VOSK -.- AUDIO
+    GPIOZERO === LED
+    GPIOZERO === BOTAO
+    GPIOZERO === SPEAKER
+```
+
+
 ---
 ### 6.2 Fluxo Iterativo de Implementação
 
@@ -232,6 +291,44 @@ A cada passo avançado, o grupo planeja adicionar testes unitários automatizado
 
 7. **Documentação Final e Realização de Testes Planejados:**
     * Com o sistema completo desenvolvido, realizaremos um último grupo de testes, seguindo a a Tabela de Testes Planejados explicitada abaixo, para documentar os resultados e o desempenho do sistema no relatório 
+
+
+#### Diagrama de Método de Desenvolvimento
+
+
+```mermaid
+graph TD
+    %% Estilos
+    classDef fase fill:#1f4e5b,stroke:#2b6b7d,stroke-width:2px,color:#fff,rx:5px,ry:5px;
+    classDef teste fill:#9b59b6,stroke:#8e44ad,stroke-width:2px,color:#fff;
+    classDef final fill:#27ae60,stroke:#2ecc71,stroke-width:2px,color:#fff;
+
+    INICIO((Início do<br>Projeto)) --> F1
+
+    subgraph Ciclo Iterativo e Incremental orientado a Testes
+        F1["<b>Fase 1</b><br>Módulo STT de Captura de Áudio"]:::fase --> T1{"Testes<br>Unitários"}:::teste
+        T1 -->|Validado| F2
+        
+        F2["<b>Fase 2</b><br>Módulo Controle GPIO (Luz/LED)"]:::fase --> T2{"Testes de<br>Atuação"}:::teste
+        T2 -->|Validado| F3
+        
+        F3["<b>Fase 3</b><br>Orquestrador Central<br>(STT + String Matching + Estados)"]:::fase --> F4
+        
+        F4["<b>Fase 4</b><br>Funcionalidade: Horário Atual"]:::fase --> NR1{"Testes de<br>Não-Regressão"}:::teste
+        
+        NR1 -->|Garante Fases 1 a 3| F5
+        
+        F5["<b>Fase 5</b><br>Funcionalidade: Tocar Músicas"]:::fase --> NR2{"Testes de<br>Não-Regressão"}:::teste
+        
+        NR2 -->|Garante Fases Anteriores| F6
+        
+        F6["<b>Fase 6</b><br>Interface de Depuração"]:::fase
+    end
+
+    F6 --> F7["<b>Fase 7</b><br>Documentação Final e<br>Testes Planejados"]:::final
+    F7 --> FIM(((Fim)))
+```
+
 
 ---
 ## 7. Testes Planejados
