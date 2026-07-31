@@ -219,21 +219,21 @@ graph TD
 
     %% Camada Core (Orquestrador)
     subgraph Camada Core
-        O[<b>Orquestrador Central</b><br>main.py]:::core
+        O["<b>Orquestrador Central</b><br>main.py"]:::core
         
         subgraph Máquina de Estados
-            EP(Escuta Passiva)
-            EA(Escuta Ativa)
-            PR(Processando)
-            RE(Repouso)
+            EP("Escuta Passiva")
+            EA("Escuta Ativa")
+            PR("Processando")
+            RE("Repouso")
         end
         O --- EP & EA & PR & RE
     end
 
     %% Camada de Abstração
     subgraph Camada de Abstração e Interfaces
-        STT_W[Wrapper / Interface<br>Engine de Áudio (STT)]:::wrapper
-        GPIO_W[Driver GPIO<br>Camada de Controle]:::wrapper
+        STT_W["Wrapper / Interface<br>Engine de Áudio (STT)"]:::wrapper
+        GPIO_W["Driver GPIO<br>Camada de Controle"]:::wrapper
     end
 
     %% Injeção / Chamadas
@@ -242,8 +242,8 @@ graph TD
 
     %% Bibliotecas de Terceiros
     subgraph Dependências Externas
-        VOSK[Motor Local<br>Vosk / etc.]:::externo
-        GPIOZERO[Biblioteca Baixo Nível<br>gpiozero]:::externo
+        VOSK["Motor Local<br>Vosk / etc."]:::externo
+        GPIOZERO["Biblioteca Baixo Nível<br>gpiozero"]:::externo
     end
 
     STT_W -.->|Isola dependência| VOSK
@@ -251,10 +251,10 @@ graph TD
 
     %% Hardware
     subgraph Camada Física / Hardware
-        AUDIO[Áudio USB / Microfone]:::hardware
-        LED[LEDs / Relé de Iluminação]:::hardware
-        BOTAO[Botão Físico]:::hardware
-        SPEAKER[Saída de Áudio]:::hardware
+        AUDIO["Áudio USB / Microfone"]:::hardware
+        LED["LEDs / Relé de Iluminação"]:::hardware
+        BOTAO["Botão Físico"]:::hardware
+        SPEAKER["Saída de Áudio"]:::hardware
     end
 
     VOSK -.- AUDIO
