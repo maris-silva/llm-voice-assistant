@@ -1,18 +1,23 @@
-from gpiozero import LED
+from pathlib import Path
+from gpiozero import Buzzer
 from stt import SpeechToText
+from musica import Player
 
 WAKE_WORD = "ativar"
+player = Player()
 
-led = LED(17)  # ajuste o pino GPIO conforme sua ligação
+RAIZ_PROJETO = Path(__file__).resolve().parent.parent
+PASTA_OLIVIA_RODRIGO = RAIZ_PROJETO / "musicas" / "olivia_rodrigo"
+buzzer = Buzzer(12)  # ajuste o pino GPIO conforme sua ligação
 
 
 def acender_luz():
-    led.on()
+    buzzer.on()
     print("💡 Executando: Ligando as luzes do quarto...")
 
 
 def apagar_luz():
-    led.off()
+    buzzer.off()
     print("🌑 Executando: Desligando as luzes do quarto...")
 
 
@@ -25,10 +30,20 @@ def cancelar():
     print("😴 Executando: Cancelado.")
 
 
+def tocar_olivia_rodrigo():
+    player.tocar(PASTA_OLIVIA_RODRIGO)
+ 
+ 
+def parar_musica():
+    player.parar()
+    print("⏹️ Música parada.")
+
 # comando -> (frases-gatilho, função a executar)
 COMANDOS = {
     "acender_luz": (["ligar a luz", "acender", "acender a luz", "luz"], acender_luz),
-    "apagar_luz":  (["apagar a luz", "desligar a luz"], apagar_luz),
+    "apagar_luz":  (["apagar","apagar a luz", "desligar a luz", "escuro"], apagar_luz),
+    "olivia_rodrigo": (["olivia", "olivia rodrigo", "toca olivia rodrigo", "musica da olivia"], tocar_olivia_rodrigo),
+    "parar_musica":   (["parar a musica", "parar musica", "para a musica"], parar_musica),
     "horas":       (["horas", "que horas"], mostrar_horas),
     "cancelar":    (["desligar", "cancelar"], cancelar),
 }
@@ -71,7 +86,6 @@ def main():
 
                 print("-" * 60)
                 print("🎙️ Modo de Espera. Diga 'ativar'.")
-                modo_comando = False
                 stt.set_vocabulario([WAKE_WORD])
 
 
