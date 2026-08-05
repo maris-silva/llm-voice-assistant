@@ -7,7 +7,7 @@ WAKE_WORD = "ativar"
 player = Player()
 
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
-PASTA_OLIVIA_RODRIGO = RAIZ_PROJETO / "musicas" / "olivia_rodrigo"
+PASTA_OLIVIA_RODRIGO = RAIZ_PROJETO / "musicas" 
 buzzer = Buzzer(12)  # ajuste o pino GPIO conforme sua ligação
 
 
