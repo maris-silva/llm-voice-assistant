@@ -1,3 +1,6 @@
 sounddevice
 vosk
 gpiozero
+customtkinter
+pillow
+mutagen
