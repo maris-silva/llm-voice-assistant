@@ -4,7 +4,7 @@ from stt import SpeechToText
 from musica import Player
 
 WAKE_WORD = "ativar"
-player = Player()
+player = Player(dispositivo_audio="hw:2,0")
 
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 PASTA_OLIVIA_RODRIGO = RAIZ_PROJETO / "musicas" 
