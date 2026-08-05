@@ -351,10 +351,10 @@ flowchart TD
 
 | ID Teste | Parâmetro Avaliado | Requisitos Associados | Meta | Resultado Medido | Status |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| **T01** | Tempo de resposta para palavras de ativação/desativação (`"Ativar"` e `"Desligar"`) e indicação de feedback visual | RF01, RNF03 | < 500 ms | *A preencher* | *Pendente* |
-| **T02** | Precisão do acionamento de hardware do periférico (LED Ligar/Desligar) | RF02 | 100% de sucesso nas acionaçoes | *A preencher* | *Pendente* |
-| **T03** | Execução e reprodução correta das faixas de áudio pré-definidas | RF04 | 100% de execução correta | *A preencher* | *Pendente* |
-| **T04** | Exibição/retorno correto do horário atual após comando de voz (`"Horas"`) | RF05 | 100% de precisão | *A preencher* | *Pendente* |
+| **T01** | Tempo de resposta para palavras de ativação/desativação (`"Ativar"` e `"Desligar"`) e indicação de feedback visual | RF01, RNF03 | < 500 ms | [Vídeo](https://drive.google.com/file/d/1VgksXS5Cvcv5VBpo8SzBBQC8M4KPtRIi/view)  | OK |
+| **T02** | Precisão do acionamento de hardware do periférico (LED Ligar/Desligar) | RF02 | 100% de sucesso nas acionaçoes | [Vídeo](https://drive.google.com/file/d/17yvMzZEnAT2EplYF8eHxiztsZADwjX7V/view?usp=sharing) | OK |
+| **T03** | Execução e reprodução correta das faixas de áudio pré-definidas | RF04 | 100% de execução correta | [Vídeo](https://drive.google.com/file/d/1VgksXS5Cvcv5VBpo8SzBBQC8M4KPtRIi/view)  | OK |
+| **T04** | Exibição/retorno correto do horário atual após comando de voz (`"Horas"`) | RF05 | 100% de precisão | [Vídeo](https://drive.google.com/file/d/17yvMzZEnAT2EplYF8eHxiztsZADwjX7V/view?usp=sharing) | OK |
 | **T05** | Latência total entre o fim do comando de voz e a execução da ação (amostragem contínua) | RNF01 | < 2,5 s | *A preencher* | *Pendente* |
 | **T06** | Taxa de acerto/confiabilidade no reconhecimento de comandos em ambiente ruidoso (~50 emissões) | RNF02 | >= 50% de acertos | *A preencher* | *Pendente* |
 ---
