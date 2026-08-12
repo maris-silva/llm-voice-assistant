@@ -59,7 +59,8 @@ A Tabela 1 detalha os Requisitos Funcionais (RF) e Não Funcionais (RNF) definid
 A arquitetura de hardware é centralizada na placa Raspberry Pi 3 Model B, atuando como a unidade de processamento responsável por rodar o sistema operacional, executar o modelo de inferência de áudio localmente e orquestrar os periféricos. A parte física é composta pelos seguintes elementos:
 
 * **Entrada/Saída (I/O) de Áudio:** um headset responsável pela captação da voz do usuário (sinal de áudio) e pelo retorno sonoro (como a reprodução de faixas musicais locais).
-* **Iluminação:** um circuito simples de LED conectado fisicamente ao pino **GPIO 17** da Raspberry Pi, protegido por um resistor limitador de corrente (220Ω a 330Ω) conectado ao GND (terra). 
+* **Iluminação:** um circuito simples de LED conectado fisicamente ao pino **GPIO 17** da Raspberry Pi, protegido por um resistor limitador de corrente (220Ω a 330Ω) conectado ao GND (terra).
+  > **Nota:** durante o desenvolvimento incremental, o protótipo inicial (`src/`) chegou a usar um buzzer no pino GPIO 12 para os testes de acionamento; a versão consolidada (`backend/`, ver 4.2.2) usa o LED no pino 17 conforme especificado.
 * **Alimentação:** fonte de alimentação padrão de 5V adequada para a Raspberry Pi 3, garantindo corrente suficiente para alimentar as portas USB e os pinos GPIO sem queda de tensão durante o processamento da CPU.
 * **Processamento:** a CPU ARM da Raspberry Pi, que executa localmente o modelo acústico do Vosk (`vosk-model-small-pt-0.3`) sem necessidade de conexão externa.
   
@@ -83,8 +84,18 @@ O comportamento do sistema alterna os vocabulários do motor de reconhecimento p
 3. **Estado 3: Processamento e Ação**
    * **Ação:** A função `identificar_comando(texto)` varre o dicionário de gatilhos. Se houver correspondência, executa a ação atrelada (ex: `acender_luz()`, `mostrar_horas()`, `cancelar()`). Se não houver, informa "Comando não reconhecido".
    * **Transição:** Independentemente do sucesso da ação, a flag `modo_comando` retorna para `False`, o vocabulário é novamente restrito à *wake word* e o sistema retorna ao *Estado 1*.
+
+#### 4.2.2 Arquitetura Consolidada (`backend/` e `frontend/`)
+A partir da integração da interface gráfica, o sistema evoluiu para uma arquitetura de duas camadas, orquestradas por um ponto de entrada único, `main.py`, na raiz do projeto:
+
+* **Camada de Backend (`backend/`):** o `AssistantEngine` substitui o orquestrador original, rodando em uma *thread* dedicada e adicionando um mecanismo de **timeout** (10s de inatividade retornam o sistema ao modo de espera automaticamente, sem exigir um comando explícito de desativação). Os módulos `hardware.py`, `musica.py` e `tts.py` isolam, respectivamente, o acionamento do LED, a reprodução de áudio e a síntese de voz (`espeak-ng`) usada para dar retorno falado ao usuário.
+* **Camada de Frontend (`frontend/`):** interface gráfica em `customtkinter` (`App`), com telas (`idle`, `clock`, `light`, `song`) que o `AssistantEngine` aciona diretamente (`app.show_view(...)`) conforme o comando reconhecido, substituindo o feedback exclusivamente textual do protótipo inicial.
+* **Encerramento controlado:** `main.py` trata `SIGINT`/`SIGTERM` e o fechamento da janela para garantir que os processos externos (`aplay`, `espeak-ng`) sejam finalizados corretamente ao sair.
+
+O protótipo inicial em `src/` (descrito nas seções 4.2 e 4.2.1) permanece no repositório como referência do desenvolvimento incremental, mas não é mais o caminho de execução principal do sistema.
 ---
 ### 4.3 Diagramas da Arquitetura
+*(Diagramas abaixo descrevem a arquitetura do protótipo inicial em `src/`; ver 4.2.2 para a arquitetura consolidada.)*
 
 O GitHub suporta a renderização nativa dos diagramas abaixo (Mermaid).
 
@@ -184,7 +195,9 @@ sequenceDiagram
 * **Manipulação de Hardware (GPIO):**
   * `gpiozero`: Biblioteca para controle dos pinos de entrada e saída (GPIO) da Raspberry Pi 3, responsável pelo acionamento do hardware de iluminação (LED) 
 * **Processamento e Captura de Áudio:**
-  * `pyaudio` (Interface Python para PortAudio, já instalada na placa): Utilizada para realizar a captura contínua do fluxo de áudio em tempo real enviado pelo microfone.
+  * `sounddevice` (interface Python para PortAudio): utilizada para realizar a captura contínua do fluxo de áudio em tempo real enviado pelo microfone, via `RawInputStream` com callback assíncrono.
+* **Síntese de Voz (Text-to-Speech):**
+  * `espeak-ng`: motor de síntese de voz offline, usado para fornecer retorno falado ao usuário (confirmações de comando, leitura de horas, etc.), com a saída de áudio roteada via `aplay`.
 * **Interface Gráfica:**
   * `customtkinter` foi usado para o desenvolvimento das telas de forma, em conjunto com `pillow`, para a manipulação de imagens, e `mutagen`, para a extração de informações de áudio.
 
@@ -348,6 +361,13 @@ flowchart TD
     end
 ```
 
+### 6.3 Testes Automatizados
+
+Complementando os testes planejados na Seção 7 (que validam requisitos físicos/temporais diretamente na placa), o repositório conta com uma suíte de testes automatizados (`tests/`), executada via `pytest` a cada `push`/Pull Request pelo GitHub Actions.
+
+* **Cobertura:** reconhecimento e roteamento de comandos (`identificar_comando`), o módulo `SpeechToText`, o tocador de música e a síntese de voz — com o hardware (GPIO, microfone) e os processos externos (`aplay`, `espeak-ng`) simulados (*mocks*), permitindo rodar a suíte em qualquer máquina, sem depender da Raspberry Pi.
+* **Valor como teste de não-regressão:** a suíte já identificou duas inconsistências reais durante o desenvolvimento — uma ambiguidade no roteamento de comandos (o gatilho genérico `"luz"` fazia `"apagar a luz"` acionar `acender_luz`) e uma incompatibilidade de formato de áudio na reprodução de música (`.wav` esperado vs. `.mp3` disponível) — validando na prática a estratégia descrita na Seção 6.2.
+* **Cobertura de código:** publicada automaticamente no resumo de cada execução no GitHub Actions (≈53% das linhas de `src/`, concentrada na lógica testável sem hardware real).
 
 ---
 ## 7. Testes Planejados
@@ -375,15 +395,21 @@ flowchart TD
 ---
 
 ## 8. Conclusões e Trabalhos Futuros
-*(Esta seção será preenchida futuramente)*
 
 ### 8.1 Considerações Finais
+O projeto atingiu seu objetivo geral: um assistente de voz funcional, executando 100% offline em uma Raspberry Pi 3, capaz de reconhecer uma palavra de ativação, mapear comandos de fala para ações de hardware (iluminação), reprodução de mídia e consulta de horário, com retorno tanto visual (interface gráfica) quanto falado (síntese de voz). A arquitetura evoluiu de um protótipo único em `src/` para uma estrutura modular em camadas (`backend/`/`frontend/`), acompanhada de uma suíte de testes automatizados que ajudou a identificar e documentar defeitos reais ao longo do desenvolvimento.
 
 ### 8.2 Direções para Trabalhos Futuros
+* Unificar a implementação legada (`src/`) com a arquitetura consolidada (`backend/`+`frontend/`), removendo a duplicação de módulos (STT, player de música, TTS).
+* Corrigir a incompatibilidade de formato de áudio (`.wav` esperado vs. `.mp3` disponível) na reprodução de música.
+* Resolver as ambiguidades remanescentes de reconhecimento de comando causadas por gatilhos que são substring uns dos outros.
+* Estender a suíte de testes automatizados para cobrir `backend/` e `frontend/`.
+* Executar e registrar os testes físicos pendentes (T05 e T06) na Raspberry Pi.
 
 ---
 
 ## Referências Bibliográficas
-* 
-*
-*
+* VOSK API. *Offline speech recognition API*. Disponível em: <https://github.com/alphacep/vosk-api>.
+* GPIOZERO. *A simple interface to GPIO devices with Raspberry Pi*. Disponível em: <https://gpiozero.readthedocs.io/>.
+* CUSTOMTKINTER. *Modern and customizable Python UI-library based on Tkinter*. Disponível em: <https://github.com/TomSchimansky/CustomTkinter>.
+* ESPEAK-NG. *Open source speech synthesizer*. Disponível em: <https://github.com/espeak-ng/espeak-ng>.
