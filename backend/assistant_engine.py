@@ -14,6 +14,8 @@ RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 PASTA_MUSICAS = RAIZ_PROJETO / "musicas"
 
 TIMEOUT_MODO_ATIVO = 15.0
+# Tempo limite em segundos sem detectar fala/comando antes de fechar a escuta ativa
+TIMEOUT_MODO_ATIVO = 10.0
 
 
 class AssistantEngine:
@@ -107,7 +109,7 @@ class AssistantEngine:
                         modo_comando = False
                         self.stt.set_vocabulario([WAKE_WORD])
                         self.log(
-                            "⏰ Timeout atingido. Voltando ao modo inativo (IDLE)."
+                            "⏰ Timeout de escuta atingido. Voltando ao modo inativo (IDLE)."
                         )
                         self.app.after(0, lambda: self.app.set_assistant_state("IDLE"))
 
