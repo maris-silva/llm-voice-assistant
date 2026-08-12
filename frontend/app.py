@@ -61,14 +61,28 @@ class App(ctk.CTk):
         self.log_textbox.pack(fill="both", expand=True, padx=5, pady=5)
         self.log_textbox.insert("end", "[SYSTEM] Terminal de Debug carregado...\n")
 
+        # Garante a exibição inicial na tela 'idle' no estado inativo (IDLE)
+        self.set_assistant_state("IDLE")
         self.show_view("idle")
 
     def register_view(self, key: str, view_widget):
         self.views[key] = view_widget
         view_widget.grid(row=0, column=0, sticky="nsew")
 
+    def set_assistant_state(self, state: str):
+        """
+        Altera o estado visual na página Idle ('IDLE' para inativo / 'OUVINDO' para modo ativo)
+        """
+        if "idle" in self.views and hasattr(self.views["idle"], "set_state"):
+            self.views["idle"].set_state(state)
+
     def show_view(self, key: str, data=None, auto_return_seconds=None):
-        if key not in self.views or key == self.active_view_key:
+        if key not in self.views:
+            return
+
+        # Se a mesma view já estiver na tela, atualizamos apenas o estado/dados sem reexecutar a animação
+        if key == self.active_view_key:
+            self.views[key].on_show(data)
             return
 
         if self.auto_return_timer:

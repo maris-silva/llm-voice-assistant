@@ -1,14 +1,18 @@
 import threading
+import time
 from pathlib import Path
-from datetime import datetime
 
 from backend.stt import SpeechToText
 from backend.musica import Player
 from backend.hardware import HardwareController
 
 WAKE_WORD = "ativar"
+SLEEP_WORDS = ["desativar", "cancelar", "pode ir", "tchau", "fechar"]
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
-PASTA_MUSICAS = RAIZ_PROJETO / "songs"
+PASTA_MUSICAS = RAIZ_PROJETO / "musicas"
+
+# Tempo limite em segundos sem comandos antes de retornar ao modo inativo
+TIMEOUT_MODO_ATIVO = 15.0
 
 
 class AssistantEngine:
@@ -43,6 +47,10 @@ class AssistantEngine:
                 self.cmd_parar_musica,
             ),
             "horas": (["horas", "que horas"], self.cmd_mostrar_horas),
+            "desativar": (
+                SLEEP_WORDS,
+                self.cmd_desativar_modo_ativo,
+            ),
         }
 
         self.vocab_comandos = [
@@ -60,22 +68,39 @@ class AssistantEngine:
                 self.stt = stt
                 self.stt.set_vocabulario([WAKE_WORD])
                 modo_comando = False
+                ultimo_comando_timestamp = 0
 
-                self.log(f"Inicializado. Diga '{WAKE_WORD}'...")
+                self.log(f"Inicializado em modo inativo. Diga '{WAKE_WORD}'...")
 
                 for texto in self.stt.escutar():
                     if not self.is_running:
                         break
 
+                    tempo_atual = time.time()
+
+                    # Checa estouro do timeout no modo ativo
+                    if modo_comando and (
+                        tempo_atual - ultimo_comando_timestamp > TIMEOUT_MODO_ATIVO
+                    ):
+                        modo_comando = False
+                        self.stt.set_vocabulario([WAKE_WORD])
+                        self.log(
+                            "⏰ Timeout atingido. Voltando ao modo inativo (IDLE)."
+                        )
+                        self.app.after(0, lambda: self.app.set_assistant_state("IDLE"))
+
                     if not modo_comando:
                         if WAKE_WORD in texto:
                             modo_comando = True
+                            ultimo_comando_timestamp = time.time()
                             self.stt.set_vocabulario(self.vocab_comandos)
-                            self.log("🔔 Palavra de ativação detectada!")
+                            self.log(
+                                "🔔 Palavra de ativação detectada! Assistente ativa."
+                            )
 
-                            # Atualiza UI para estado OUVINDO
+                            # Atualiza UI no thread principal
                             self.app.after(
-                                0, lambda: self.app.views["idle"].set_state("OUVINDO")
+                                0, lambda: self.app.set_assistant_state("OUVINDO")
                             )
                     else:
                         self.log(f"🧠 Comando recebido: '{texto}'")
@@ -83,15 +108,15 @@ class AssistantEngine:
 
                         if acao:
                             acao()
+                            if nome == "desativar":
+                                modo_comando = False
+                                self.stt.set_vocabulario([WAKE_WORD])
+                                continue
+
+                            # Renova a contagem de inatividade a cada comando efetuado com sucesso
+                            ultimo_comando_timestamp = time.time()
                         else:
                             self.log("❓ Comando não reconhecido.")
-                            self.app.after(
-                                0, lambda: self.app.views["idle"].set_state("IDLE")
-                            )
-
-                        # Retorna ao modo de espera
-                        modo_comando = False
-                        self.stt.set_vocabulario([WAKE_WORD])
 
         except Exception as e:
             self.log(f"❌ Erro no Engine de Voz: {e}")
@@ -104,10 +129,9 @@ class AssistantEngine:
         return None, None
 
     def log(self, mensagem):
-        """Envia mensagens de log com segurança para a UI"""
         self.app.after(0, lambda: self.app.log_debug(mensagem))
 
-    # --- AÇÕES E INTEGRAÇÃO COM AS PÁGINAS ---
+    # --- AÇÕES DA INTERFACE ---
 
     def cmd_acender_luz(self):
         HardwareController.acender_luz()
@@ -126,10 +150,13 @@ class AssistantEngine:
 
     def cmd_tocar_musica(self):
         faixa = self.player.tocar(PASTA_MUSICAS / "good4u.mp3")
-        self.app.after(
-            0, lambda: self.app.show_view("song", data="good4u", auto_return_seconds=10)
-        )
+        self.app.after(0, lambda: self.app.show_view("song", data="good4u"))
 
     def cmd_parar_musica(self):
         self.player.parar()
+        self.app.after(0, lambda: self.app.show_view("idle"))
+
+    def cmd_desativar_modo_ativo(self):
+        self.log("😴 Modo de escuta contínua encerrado pelo usuário.")
+        self.app.after(0, lambda: self.app.set_assistant_state("IDLE"))
         self.app.after(0, lambda: self.app.show_view("idle"))
