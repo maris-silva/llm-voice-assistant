@@ -12,7 +12,7 @@ RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 PASTA_MUSICAS = RAIZ_PROJETO / "musicas"
 
 # Tempo limite em segundos sem detectar fala/comando antes de fechar a escuta ativa
-TIMEOUT_MODO_ATIVO = 15.0
+TIMEOUT_MODO_ATIVO = 10.0
 
 
 class AssistantEngine:
