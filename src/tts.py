@@ -1,8 +1,8 @@
 import subprocess
 
-def falar(texto, voz="pt-br"):
+def falar(texto, voz="pt-br", velocidade=120):
     espeak = subprocess.Popen(
-        ["espeak-ng", "-v", voz, "--stdout", texto],
+        ["espeak-ng", "-v", voz,"-s", str(velocidade), "--stdout", texto],
         stdout=subprocess.PIPE
     )
     subprocess.run(
