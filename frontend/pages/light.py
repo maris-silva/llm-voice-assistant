@@ -1,6 +1,6 @@
 import os
-from PIL import Image
 import customtkinter as ctk
+from PIL import Image
 from frontend.constants import FONT_FAMILY
 from frontend.pages.homepage import HomePage
 
@@ -44,3 +44,14 @@ class LightPage(HomePage):
             text_color="#00918c",
         )
         self.lbl_status.grid(row=2, column=0, sticky="n")
+
+    def on_show(self, is_on=True):
+        """Atualiza a interface dinamicamente conforme o comando recebido"""
+        if is_on:
+            self.configure(fg_color="#02fcf3")
+            self.lbl_title.configure(text="Luzes ligadas!", text_color="#00918c")
+            self.lbl_status.configure(text_color="#00918c")
+        else:
+            self.configure(fg_color="#182026")
+            self.lbl_title.configure(text="Luzes apagadas!", text_color="#02fcf3")
+            self.lbl_status.configure(text_color="#02fcf3")

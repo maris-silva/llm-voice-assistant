@@ -28,6 +28,7 @@ class App(ctk.CTk):
 
         self.views = {}
         self.active_view_key = None
+        self.auto_return_timer = None
 
         self.register_view("idle", IdlePage(self.view_container))
         self.register_view("clock", ClockPage(self.view_container))
@@ -70,6 +71,10 @@ class App(ctk.CTk):
         if key not in self.views or key == self.active_view_key:
             return
 
+        if self.auto_return_timer:
+            self.after_cancel(self.auto_return_timer)
+            self.auto_return_timer = None
+
         if key == "song" and not data:
             data = "good4u"
 
@@ -96,10 +101,11 @@ class App(ctk.CTk):
         fade_step(1.0)
 
         if auto_return_seconds:
-            self.after(int(auto_return_seconds * 1000), lambda: self.show_view("idle"))
+            self.auto_return_timer = self.after(
+                int(auto_return_seconds * 1000), lambda: self.show_view("idle")
+            )
 
     def toggle_debug(self):
-        """Exibe ou oculta o painel de logs no rodapé ajustando a altura da janela"""
         if self.switch_debug.get() == 1:
             self.debug_frame.grid(row=2, column=0, sticky="ew")
         else:
@@ -107,6 +113,5 @@ class App(ctk.CTk):
             self.geometry("650x650")
 
     def log_debug(self, message: str):
-        """Método público para o backend enviar logs direto pra UI"""
         self.log_textbox.insert("end", f"> {message}\n")
         self.log_textbox.see("end")
