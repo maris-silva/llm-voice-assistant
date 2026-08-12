@@ -43,7 +43,7 @@ COMANDOS = {
     "acender_luz": (["ligar a luz", "acender", "acender a luz", "luz"], acender_luz),
     "apagar_luz":  (["apagar","apagar a luz", "desligar a luz", "escuro"], apagar_luz),
     "olivia_rodrigo": (["olivia", "olivia rodrigo", "toca olivia rodrigo", "musica da olivia"], tocar_olivia_rodrigo),
-    "parar_musica":   (["parar a musica", "parar musica", "para a musica"], parar_musica),
+    "parar_musica":   (["inicio","parar a musica", "parar musica", "para a musica"], parar_musica),
     "horas":       (["horas", "que horas"], mostrar_horas),
     "cancelar":    (["desligar", "cancelar"], cancelar),
 }
