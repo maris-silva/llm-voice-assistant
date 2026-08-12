@@ -52,6 +52,11 @@ cmake-build-*/
 tests/output/
 *.wav.tmp
 
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+
 docs/*.aux
 docs/*.log
 docs/*.out
