@@ -8,6 +8,8 @@ class ClockPage(HomePage):
     def __init__(self, master):
         super().__init__(master, bg_color=COLOR_3)
 
+        self.timer_id = None
+
         self.grid_rowconfigure((0, 1, 2), weight=1)
         self.grid_columnconfigure(0, weight=1)
 
@@ -30,5 +32,19 @@ class ClockPage(HomePage):
         self.lbl_status.grid(row=2, column=0, sticky="n")
 
     def on_show(self, data=None):
+        """Disparado quando a tela do relógio entra em exibição"""
+        self.update_clock()
+
+    def on_hide(self):
+        """Para o temporizador quando a tela for ocultada para economizar CPU"""
+        if self.timer_id:
+            self.after_cancel(self.timer_id)
+            self.timer_id = None
+
+    def update_clock(self):
+        """Atualiza a hora na tela e reagenda a checagem a cada 1 segundo"""
         horario_atual = datetime.now().strftime("%H:%M")
         self.lbl_time.configure(text=horario_atual)
+
+        # Mantém o relógio preciso enquanto a tela estiver visível
+        self.timer_id = self.after(1000, self.update_clock)
