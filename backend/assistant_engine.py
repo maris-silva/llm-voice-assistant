@@ -149,7 +149,7 @@ class AssistantEngine:
         self.app.after(0, lambda: self.app.show_view("clock", auto_return_seconds=5))
 
     def cmd_tocar_musica(self):
-        faixa = self.player.tocar(PASTA_MUSICAS / "good4u.mp3")
+        faixa = self.player.tocar(PASTA_MUSICAS / "good4u.wav")
         self.app.after(0, lambda: self.app.show_view("song", data="good4u"))
 
     def cmd_parar_musica(self):
