@@ -39,6 +39,7 @@ class AssistantEngine:
                     "toca olivia rodrigo",
                     "good 4 u",
                     "musica",
+                    "rodrigo",
                 ],
                 self.cmd_tocar_musica,
             ),
