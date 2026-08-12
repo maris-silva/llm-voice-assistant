@@ -1,5 +1,7 @@
 # O QUE É O LLM VOICE ASSISTANT
 
+[![Testes](https://github.com/maris-silva/llm-voice-assistant/actions/workflows/tests.yml/badge.svg)](https://github.com/maris-silva/llm-voice-assistant/actions/workflows/tests.yml)
+
 ## Assistente de Voz 100% Offline e Modular para Raspberry Pi
 
 O **LLM Voice Assistant** é uma solução de assistente virtual embarcada desenvolvida para rodar totalmente **offline** em uma **Raspberry Pi 3**. O projeto prioriza a privacidade do usuário, eliminando o tráfego de dados para a nuvem e proporcionando baixa latência nas interações.
@@ -29,7 +31,14 @@ llm-voice-assistant/
 │   ├── main.py            # Script principal (orquestrador e loop de escuta)
 │   └── stt.py             # Módulo de processamento Speech-to-Text (Vosk)
 ├── tests/
-│   └── moduleX_test.py    # Scripts de testes unitários e de integração
+│   ├── conftest.py        # Configuração compartilhada (mocka hardware GPIO)
+│   ├── test_comandos.py   # Testes do reconhecimento/roteamento de comandos
+│   ├── test_stt.py        # Testes do SpeechToText (Vosk/microfone mockados)
+│   ├── test_musica.py     # Testes do tocador de música (aplay mockado)
+│   └── test_tts.py        # Testes do texto-para-voz (espeak-ng mockado)
+├── .github/
+│   └── workflows/
+│       └── tests.yml      # CI: roda a suíte de testes a cada push/PR
 ├── .gitignore             # Arquivos ignorados pelo repositório Git
 ├── LICENSE                # Licença do projeto
 └── README.md              # Visão geral e guia rápido de uso do projeto
@@ -121,3 +130,25 @@ Assim que o terminal exibir `[Alexa Local]: Inicializada com sucesso!`, siga os 
 | **`PermissionError: GPIO` ou `gpiomem`** | Seu usuário não tem permissão de hardware. Rode: `sudo usermod -aG gpio $USER`, reinicie a placa e tente de novo. |
 | **`PortAudioError` no terminal** | O script não achou o microfone. Rode o comando do Passo 4 para listar os dispositivos de áudio e verificar a conexão. |
 | **Fica travado no "Carregando modelo..."** | Verifique a conexão com a internet. O Vosk está tentando baixar o modelo na primeira execução. |
+
+---
+
+# Testes Automatizados
+
+O projeto tem uma suíte de testes (`tests/`) que cobre o reconhecimento/roteamento de comandos, o `SpeechToText`, o tocador de música e o texto-para-voz. Hardware (microfone, GPIO) e processos externos (`aplay`, `espeak-ng`) são todos simulados — a suíte roda em qualquer máquina, não precisa de Raspberry Pi nem de microfone conectado.
+
+## Comando rápido
+
+Com o ambiente virtual ativado (Passo 3):
+
+```bash
+pytest --cov=src --cov-report=term-missing
+```
+
+## Vendo os resultados no GitHub
+
+A cada push na `main` ou Pull Request aberto, o workflow [`Testes`](.github/workflows/tests.yml) roda automaticamente. Pra acompanhar:
+* **Badge no topo deste README** — status da última execução na `main`.
+* **Aba "Actions"** do repositório — lista cada execução, com o log completo.
+* **Bolinha ao lado de cada commit** na lista de commits — indica se aquele commit passou nos testes.
+* Dentro de uma execução específica, a aba **"Summary"** mostra a tabela de cobertura de testes.

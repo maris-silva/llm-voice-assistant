@@ -4,3 +4,7 @@ gpiozero
 customtkinter
 pillow
 mutagen
+
+# Testes
+pytest
+pytest-cov
