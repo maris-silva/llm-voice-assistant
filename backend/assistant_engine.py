@@ -49,6 +49,34 @@ class AssistantEngine:
                 ],
                 self.cmd_tocar_musica,
             ),
+            "crystal_castles": (
+                [
+                    "crystal castles",
+                    "cristal",
+                    "tocar cristal"
+                    "castelo",
+                    "cristal castelo",
+                    "vanished",
+                    "desaparecer"
+                ],
+                self.cmd_tocar_musica_cristal,
+            ),
+            "armandinho": (
+                [
+                    "armandinho",
+                    "armando",
+                    "tocar armandinho",
+                    "toca armandinho",
+                    "toca armando",
+                    "reggae",
+                    "tramanda",
+                    "regue das tramanda",
+                    "regue",
+                    "reggae das tramanda",
+                    "tocar armando"
+                ],
+                self.cmd_tocar_musica_armandinho,
+            ),
             "parar_musica": (
                 ["parar a musica", "parar musica", "para a musica", "parar"],
                 self.cmd_parar_musica,
@@ -183,6 +211,17 @@ class AssistantEngine:
         self.tts.falar("Toocaandoo Ooliiviiaa Roodriigoo.")
         faixa = self.player.tocar(PASTA_MUSICAS / "good4u.wav")
         self.app.after(0, lambda: self.app.show_view("song", data="good4u"))
+
+    def cmd_tocar_musica_cristal(self):
+        self.tts.falar("Toocaandoo Criistaal Caastlees.")
+        faixa = self.player.tocar(PASTA_MUSICAS / "vanyshed.wav")
+        self.app.after(0, lambda: self.app.show_view("song", data="Vanished"))
+
+    def cmd_tocar_musica_armandinho(self):
+        self.tts.falar("Toocaandoo Aarmaandiinhoo.")
+        faixa = self.player.tocar(PASTA_MUSICAS / "armandinho.wav")
+        self.app.after(0, lambda: self.app.show_view("song", data="Armandinho"))
+
 
     def cmd_parar_musica(self):
         self.player.parar()
