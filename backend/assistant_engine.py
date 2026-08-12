@@ -5,20 +5,23 @@ from pathlib import Path
 from backend.stt import SpeechToText
 from backend.musica import Player
 from backend.hardware import HardwareController
+from backend.tts import TextToSpeech  # Import do novo módulo
 
 WAKE_WORD = "ativar"
 SLEEP_WORDS = ["desativar", "cancelar", "pode ir", "tchau", "fechar"]
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 PASTA_MUSICAS = RAIZ_PROJETO / "musicas"
 
-# Tempo limite em segundos sem detectar fala/comando antes de fechar a escuta ativa
-TIMEOUT_MODO_ATIVO = 10.0
+TIMEOUT_MODO_ATIVO = 15.0
 
 
 class AssistantEngine:
     def __init__(self, app_interface):
         self.app = app_interface
         self.player = Player(dispositivo_audio="hw:2,0")
+        self.tts = TextToSpeech(
+            dispositivo_audio="hw:2,0"
+        )  # Inicialização do TTS no mesmo fone
         self.stt = None
         self.thread = None
         self.is_running = False
@@ -39,7 +42,6 @@ class AssistantEngine:
                     "toca olivia rodrigo",
                     "good 4 u",
                     "musica",
-                    "rodrigo",
                 ],
                 self.cmd_tocar_musica,
             ),
@@ -79,32 +81,28 @@ class AssistantEngine:
 
                     tempo_atual = time.time()
 
-                    # Verifica estouro do timeout baseado no tempo desde a última fala/escuta ativa
                     if modo_comando and (
                         tempo_atual - ultimo_comando_timestamp > TIMEOUT_MODO_ATIVO
                     ):
                         modo_comando = False
                         self.stt.set_vocabulario([WAKE_WORD])
                         self.log(
-                            "⏰ Timeout de escuta atingido. Voltando ao modo inativo (IDLE)."
+                            "⏰ Timeout atingido. Voltando ao modo inativo (IDLE)."
                         )
                         self.app.after(0, lambda: self.app.set_assistant_state("IDLE"))
 
                     if not modo_comando:
                         if WAKE_WORD in texto:
                             modo_comando = True
-                            # Inicia o cronômetro do modo ativo exatamente ao escutar "ativar"
                             ultimo_comando_timestamp = time.time()
                             self.stt.set_vocabulario(self.vocab_comandos)
-                            self.log(
-                                "🔔 Palavra de ativação detectada! Escuta ativa iniciada."
-                            )
-
+                            self.log("🔔 Palavra de ativação detectada!")
                             self.app.after(
                                 0, lambda: self.app.set_assistant_state("OUVINDO")
                             )
+                            # Feedback sonoro opcional de confirmação ao ser ativado
+                            self.tts.falar("Poodee faalaar.")
                     else:
-                        # Sempre atualiza o timestamp após receber qualquer áudio do usuário no modo ativo
                         ultimo_comando_timestamp = time.time()
                         self.log(f"🧠 Comando recebido: '{texto}'")
                         nome, acao = self._identificar_comando(texto)
@@ -117,6 +115,9 @@ class AssistantEngine:
                                 continue
                         else:
                             self.log("❓ Comando não reconhecido.")
+                            self.tts.falar(
+                                "Deescuulpee, nããoo eenteendii oo coomaandoo."
+                            )
 
         except Exception as e:
             self.log(f"❌ Erro no Engine de Voz: {e}")
@@ -131,33 +132,43 @@ class AssistantEngine:
     def log(self, mensagem):
         self.app.after(0, lambda: self.app.log_debug(mensagem))
 
-    # --- AÇÕES DA INTERFACE ---
-
     def cmd_acender_luz(self):
         HardwareController.acender_luz()
         self.app.after(
             0, lambda: self.app.show_view("light", data=True, auto_return_seconds=4)
         )
+        self.tts.falar("Luuz aaceesaa.")
 
     def cmd_apagar_luz(self):
         HardwareController.apagar_luz()
         self.app.after(
             0, lambda: self.app.show_view("light", data=False, auto_return_seconds=4)
         )
+        self.tts.falar("Luuz aapaagaadaa.")
 
     def cmd_mostrar_horas(self):
+        from datetime import datetime
+
+        agora = datetime.now()
+        texto_hora = (
+            f"Aagooraa sããoo {agora.hour} hooraas ee {agora.minute} miinuutoos."
+        )
+
         self.app.after(0, lambda: self.app.show_view("clock", auto_return_seconds=5))
+        self.tts.falar(texto_hora)
 
     def cmd_tocar_musica(self):
+        self.tts.falar("Toocaandoo Ooliiviiaa Roodriigoo.")
         faixa = self.player.tocar(PASTA_MUSICAS / "good4u.wav")
-        # Sem auto_return_seconds: a SongPage fecha só ao terminar a música ou por comando de voz
         self.app.after(0, lambda: self.app.show_view("song", data="good4u"))
 
     def cmd_parar_musica(self):
         self.player.parar()
         self.app.after(0, lambda: self.app.show_view("idle"))
+        self.tts.falar("Múúsiicaa paaraadaa.")
 
     def cmd_desativar_modo_ativo(self):
         self.log("😴 Modo de escuta contínua encerrado pelo usuário.")
+        self.tts.falar("Deesaatiivaandoo.")
         self.app.after(0, lambda: self.app.set_assistant_state("IDLE"))
         self.app.after(0, lambda: self.app.show_view("idle"))
