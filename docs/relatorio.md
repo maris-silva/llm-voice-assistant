@@ -32,7 +32,7 @@ Desenvolver, integrar e avaliar um Assistente de Voz 100% Offline e embarcado em
   
 * **(Opcional) Interface para depuração:**
   * Desenvolver uma interface gráfica que facilite a depuração do sistema desenvolvido, centralizando informações como o seu estado atual em tempo real durante execução, as palavras reconhecidas e se, possível, um botão que permita o início da fala do comando pelo usuário.
-  *  A interface visa facilitar o entendimento do sistema e seu funcionamento, tanto pelos desenvolvedores quanto para os avaliadores do projeto.
+  *  A interface visa facilitar o entendimento do sistema e seu funcionamento, tanto pelos desenvolvedores quanto para os avaliadores do projeto, e caracteriza um aumento da carga de processamento exigida da placa para que o sistema completo funcione.
 ---
 
 ## 3. Especificação de Requisitos
@@ -185,6 +185,9 @@ sequenceDiagram
   * `gpiozero`: Biblioteca para controle dos pinos de entrada e saída (GPIO) da Raspberry Pi 3, responsável pelo acionamento do hardware de iluminação (LED) 
 * **Processamento e Captura de Áudio:**
   * `pyaudio` (Interface Python para PortAudio, já instalada na placa): Utilizada para realizar a captura contínua do fluxo de áudio em tempo real enviado pelo microfone.
+* **Interface Gráfica:**
+  * `customtkinter` foi usado para o desenvolvimento das telas de forma, em conjunto com `pillow`, para a manipulação de imagens, e `mutagen`, para a extração de informações de áudio.
+
 
 ### 5.3 Hardware Utilizado
 * **Placa de Processamento Central (SBC):** Raspberry Pi 3 Model B.
@@ -262,7 +265,18 @@ graph TD
     GPIOZERO === BOTAO
     GPIOZERO === SPEAKER
 ```
+Ainda visando a fácil extensão de telas também no frontend, foi iniciado o desenvolvimento independente durante a Semana 2 das interface gráfica do sistema. A tela foi codificada de forma a aceitar facilmente a adição de uma nova View/Page dentro da pasta `frontend/pages` com mínima alteração no controlador principal para apenas estender o dicionário de telas usado para aceitar mais uma. Os protótipos das telas desenvolvidas até então estão mostrados abaixo, nas Figuras de 1 a 4, que trazem resultados de simulações estáticas das telas. 
 
+<a id="grid-telas"></a>
+| <a id="tela-idle"></a>**Modo Repouso / Escuta Passiva** (`idle.png`) | <a id="tela-ouvindo"></a>**Modo Escuta Ativa / Ouvindo** (`ouvindo.png`) |
+| :---: | :---: |
+| ![Modo Repouso](assets/idle.png) | ![Modo Ouvindo](assets/ouvindo.png) |
+| <a id="tela-luz"></a>**Comando de Iluminação** (`luz.png`) | <a id="tela-song"></a>**Comando de Reprodução Musical** (`song.png`) |
+| ![Comando Luz](assets/luz.jpg) | ![Comando Mídia](assets/song.jpg) |
+
+<p align="center"><small><i>Figuras 1 a 4 - Desenvolvimento independente e ainda não-integrado de telas para a interface de depuração e interação do sistema</i></small></p>
+
+Esse padrão de desenvolvimento é justamente o que precisamos para facilitar a evolução do sistema até o fim da entrega, com a facilidade de adição de melhorias e manutenção dos módulos individuais. 
 
 ---
 ### 6.2 Fluxo Iterativo de Implementação
@@ -351,12 +365,13 @@ flowchart TD
 
 | ID Teste | Parâmetro Avaliado | Requisitos Associados | Meta | Resultado Medido | Status |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| **T01** | Tempo de resposta para palavras de ativação/desativação (`"Ativar"` e `"Desligar"`) e indicação de feedback visual | RF01, RNF03 | < 500 ms | *A preencher* | *Pendente* |
-| **T02** | Precisão do acionamento de hardware do periférico (LED Ligar/Desligar) | RF02 | 100% de sucesso nas acionaçoes | *A preencher* | *Pendente* |
-| **T03** | Execução e reprodução correta das faixas de áudio pré-definidas | RF04 | 100% de execução correta | *A preencher* | *Pendente* |
-| **T04** | Exibição/retorno correto do horário atual após comando de voz (`"Horas"`) | RF05 | 100% de precisão | *A preencher* | *Pendente* |
+| **T01** | Tempo de resposta para palavras de ativação/desativação (`"Ativar"` e `"Desligar"`) e indicação de feedback visual | RF01, RNF03 | < 500 ms | [Vídeo](https://drive.google.com/file/d/1VgksXS5Cvcv5VBpo8SzBBQC8M4KPtRIi/view)  | OK |
+| **T02** | Precisão do acionamento de hardware do periférico (LED Ligar/Desligar) | RF02 | 100% de sucesso nas acionaçoes | [Vídeo](https://drive.google.com/file/d/17yvMzZEnAT2EplYF8eHxiztsZADwjX7V/view?usp=sharing) | OK |
+| **T03** | Execução e reprodução correta das faixas de áudio pré-definidas | RF04 | 100% de execução correta | [Vídeo](https://drive.google.com/file/d/1VgksXS5Cvcv5VBpo8SzBBQC8M4KPtRIi/view)  | OK |
+| **T04** | Exibição/retorno correto do horário atual após comando de voz (`"Horas"`) | RF05 | 100% de precisão | [Vídeo](https://drive.google.com/file/d/17yvMzZEnAT2EplYF8eHxiztsZADwjX7V/view?usp=sharing) | OK |
 | **T05** | Latência total entre o fim do comando de voz e a execução da ação (amostragem contínua) | RNF01 | < 2,5 s | *A preencher* | *Pendente* |
 | **T06** | Taxa de acerto/confiabilidade no reconhecimento de comandos em ambiente ruidoso (~50 emissões) | RNF02 | >= 50% de acertos | *A preencher* | *Pendente* |
+
 ---
 
 ## 8. Conclusões e Trabalhos Futuros
