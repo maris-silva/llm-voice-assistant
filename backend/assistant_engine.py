@@ -11,7 +11,7 @@ SLEEP_WORDS = ["desativar", "cancelar", "pode ir", "tchau", "fechar"]
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 PASTA_MUSICAS = RAIZ_PROJETO / "musicas"
 
-# Tempo limite em segundos sem comandos antes de retornar ao modo inativo
+# Tempo limite em segundos sem detectar fala/comando antes de fechar a escuta ativa
 TIMEOUT_MODO_ATIVO = 15.0
 
 
@@ -78,31 +78,33 @@ class AssistantEngine:
 
                     tempo_atual = time.time()
 
-                    # Checa estouro do timeout no modo ativo
+                    # Verifica estouro do timeout baseado no tempo desde a última fala/escuta ativa
                     if modo_comando and (
                         tempo_atual - ultimo_comando_timestamp > TIMEOUT_MODO_ATIVO
                     ):
                         modo_comando = False
                         self.stt.set_vocabulario([WAKE_WORD])
                         self.log(
-                            "⏰ Timeout atingido. Voltando ao modo inativo (IDLE)."
+                            "⏰ Timeout de escuta atingido. Voltando ao modo inativo (IDLE)."
                         )
                         self.app.after(0, lambda: self.app.set_assistant_state("IDLE"))
 
                     if not modo_comando:
                         if WAKE_WORD in texto:
                             modo_comando = True
+                            # Inicia o cronômetro do modo ativo exatamente ao escutar "ativar"
                             ultimo_comando_timestamp = time.time()
                             self.stt.set_vocabulario(self.vocab_comandos)
                             self.log(
-                                "🔔 Palavra de ativação detectada! Assistente ativa."
+                                "🔔 Palavra de ativação detectada! Escuta ativa iniciada."
                             )
 
-                            # Atualiza UI no thread principal
                             self.app.after(
                                 0, lambda: self.app.set_assistant_state("OUVINDO")
                             )
                     else:
+                        # Sempre atualiza o timestamp após receber qualquer áudio do usuário no modo ativo
+                        ultimo_comando_timestamp = time.time()
                         self.log(f"🧠 Comando recebido: '{texto}'")
                         nome, acao = self._identificar_comando(texto)
 
@@ -112,9 +114,6 @@ class AssistantEngine:
                                 modo_comando = False
                                 self.stt.set_vocabulario([WAKE_WORD])
                                 continue
-
-                            # Renova a contagem de inatividade a cada comando efetuado com sucesso
-                            ultimo_comando_timestamp = time.time()
                         else:
                             self.log("❓ Comando não reconhecido.")
 
@@ -150,6 +149,7 @@ class AssistantEngine:
 
     def cmd_tocar_musica(self):
         faixa = self.player.tocar(PASTA_MUSICAS / "good4u.wav")
+        # Sem auto_return_seconds: a SongPage fecha só ao terminar a música ou por comando de voz
         self.app.after(0, lambda: self.app.show_view("song", data="good4u"))
 
     def cmd_parar_musica(self):
