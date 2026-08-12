@@ -1,11 +1,12 @@
 import threading
 import time
+import subprocess
 from pathlib import Path
 
 from backend.stt import SpeechToText
 from backend.musica import Player
 from backend.hardware import HardwareController
-from backend.tts import TextToSpeech  # Import do novo módulo
+from backend.tts import TextToSpeech
 
 WAKE_WORD = "ativar"
 SLEEP_WORDS = ["desativar", "cancelar", "pode ir", "tchau", "fechar"]
@@ -64,6 +65,24 @@ class AssistantEngine:
         self.is_running = True
         self.thread = threading.Thread(target=self._loop_escuta, daemon=True)
         self.thread.start()
+
+    def stop(self):
+        """Para o loop de escuta e limpa os subprocessos atrelados de mídia e síntese de voz"""
+        self.is_running = False
+
+        # Interrompe a execução do Player de áudio
+        try:
+            if hasattr(self, "player") and self.player:
+                self.player.parar()
+        except Exception:
+            pass
+
+        # Garante o término forçado dos processos aplay e espeak-ng órfãos no sistema
+        try:
+            subprocess.run(["pkill", "-f", "aplay"], stderr=subprocess.DEVNULL)
+            subprocess.run(["pkill", "-f", "espeak-ng"], stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
 
     def _loop_escuta(self):
         try:
