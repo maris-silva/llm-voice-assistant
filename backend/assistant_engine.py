@@ -1,3 +1,4 @@
+import os
 import threading
 import time
 import subprocess
@@ -13,6 +14,13 @@ SLEEP_WORDS = ["desativar", "cancelar", "tchau", "fechar"]
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 PASTA_MUSICAS = RAIZ_PROJETO / "musicas"
 
+# Dispositivo ALSA de saída de áudio (ex.: "hw:1,0"). O índice do card do
+# headset USB varia de máquina pra máquina (e pode mudar entre boots), então
+# é configurável via variável de ambiente em vez de fixo no código. Descubra
+# o valor certo em cada máquina com `aplay -l` e exporte, ex.:
+# export AUDIO_DEVICE=hw:2,0
+DISPOSITIVO_AUDIO = os.environ.get("AUDIO_DEVICE", "hw:1,0")
+
 # Tempo limite em segundos sem detectar fala/comando antes de fechar a escuta ativa
 TIMEOUT_MODO_ATIVO = 10.0
 
@@ -24,9 +32,9 @@ AQUECIMENTO_MIC = 0.5
 class AssistantEngine:
     def __init__(self, app_interface):
         self.app = app_interface
-        self.player = Player(dispositivo_audio="hw:2,0")
+        self.player = Player(dispositivo_audio=DISPOSITIVO_AUDIO)
         self.tts = TextToSpeech(
-            dispositivo_audio="hw:2,0"
+            dispositivo_audio=DISPOSITIVO_AUDIO
         )  # Inicialização do TTS no mesmo fone
         self.stt = None
         self.thread = None

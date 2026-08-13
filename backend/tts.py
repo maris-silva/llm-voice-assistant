@@ -2,7 +2,7 @@ import subprocess
 
 
 class TextToSpeech:
-    def __init__(self, dispositivo_audio="hw:2,0", voz="pt-br+f3", velocidade=180):
+    def __init__(self, dispositivo_audio="hw:1,0", voz="pt-br+f3", velocidade=180):
         self.dispositivo_audio = dispositivo_audio
         self.voz = voz
         self.velocidade = velocidade
