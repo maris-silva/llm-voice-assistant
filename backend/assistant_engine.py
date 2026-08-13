@@ -9,7 +9,7 @@ from backend.hardware import HardwareController
 from backend.tts import TextToSpeech
 
 WAKE_WORD = "ativar"
-SLEEP_WORDS = ["desativar", "cancelar", "pode ir", "tchau", "fechar"]
+SLEEP_WORDS = ["desativar", "cancelar", "tchau", "fechar"]
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 PASTA_MUSICAS = RAIZ_PROJETO / "musicas"
 
@@ -55,7 +55,7 @@ class AssistantEngine:
                 [
                     "crystal castles",
                     "cristal",
-                    "tocar cristal"
+                    "tocar cristal",
                     "castelo",
                     "cristal castelo",
                     "vanished",
@@ -72,9 +72,9 @@ class AssistantEngine:
                     "toca armando",
                     "reggae",
                     "tramanda",
-                    "regue das tramanda",
+                    "regue tramanda",
                     "regue",
-                    "reggae das tramanda",
+                    "reggae tramanda",
                     "tocar armando"
                 ],
                 self.cmd_tocar_musica_armandinho,
@@ -234,7 +234,7 @@ class AssistantEngine:
 
     def cmd_tocar_musica_cristal(self):
         self.tts.falar("Toocaandoo Criistaal Caastlees.")
-        faixa = self.player.tocar(PASTA_MUSICAS / "vanyshed.wav")
+        faixa = self.player.tocar(PASTA_MUSICAS / "vanished.wav")
         self.app.after(0, lambda: self.app.show_view("song", data="Vanished"))
 
     def cmd_tocar_musica_armandinho(self):
