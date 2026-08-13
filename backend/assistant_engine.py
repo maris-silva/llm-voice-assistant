@@ -13,9 +13,12 @@ SLEEP_WORDS = ["desativar", "cancelar", "pode ir", "tchau", "fechar"]
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 PASTA_MUSICAS = RAIZ_PROJETO / "musicas"
 
-TIMEOUT_MODO_ATIVO = 15.0
 # Tempo limite em segundos sem detectar fala/comando antes de fechar a escuta ativa
 TIMEOUT_MODO_ATIVO = 10.0
+
+# Tempo de aquecimento do microfone/pipeline antes de aceitar a wake word,
+# evita perder a primeira fala logo que a captura de áudio começa
+AQUECIMENTO_MIC = 0.5
 
 
 class AssistantEngine:
@@ -31,11 +34,11 @@ class AssistantEngine:
 
         self.comandos = {
             "acender_luz": (
-                ["ligar a luz", "acender", "acender a luz", "luz"],
+                ["ligar luz", "acender", "acender luz", "luz"],
                 self.cmd_acender_luz,
             ),
             "apagar_luz": (
-                ["apagar", "apagar a luz", "desligar a luz", "escuro"],
+                ["apagar", "apagar luz", "desligar luz", "escuro"],
                 self.cmd_apagar_luz,
             ),
             "olivia_rodrigo": (
@@ -43,17 +46,16 @@ class AssistantEngine:
                     "olivia",
                     "olivia rodrigo",
                     "toca olivia rodrigo",
-                    "good 4 u",
                     "musica",
                     "rodrigo",
                 ],
                 self.cmd_tocar_musica,
             ),
             "parar_musica": (
-                ["parar a musica", "parar musica", "para a musica", "parar"],
+                ["parar musica", "para musica", "parar"],
                 self.cmd_parar_musica,
             ),
-            "horas": (["horas", "que horas"], self.cmd_mostrar_horas),
+            "horas": (["horas"], self.cmd_mostrar_horas),
             "desativar": (
                 SLEEP_WORDS,
                 self.cmd_desativar_modo_ativo,
@@ -91,13 +93,21 @@ class AssistantEngine:
         try:
             with SpeechToText() as stt:
                 self.stt = stt
+                # Dá tempo do microfone/pipeline estabilizar antes de aceitar a
+                # wake word, senão a primeira fala tende a se perder.
+                time.sleep(AQUECIMENTO_MIC)
                 self.stt.set_vocabulario([WAKE_WORD])
                 modo_comando = False
                 ultimo_comando_timestamp = 0
 
                 self.log(f"Inicializado em modo inativo. Diga '{WAKE_WORD}'...")
 
-                for texto in self.stt.escutar():
+                # timeout=1.0 faz o gerador emitir um "tick" (texto=None) a cada
+                # segundo mesmo em silêncio, para o timeout de modo ativo ser
+                # checado por tempo e não só quando alguma fala é reconhecida.
+                for texto in self.stt.escutar(
+                    timeout=1.0, on_resultado=self._log_resultado_vazio
+                ):
                     if not self.is_running:
                         break
 
@@ -112,6 +122,9 @@ class AssistantEngine:
                             "⏰ Timeout de escuta atingido. Voltando ao modo inativo (IDLE)."
                         )
                         self.app.after(0, lambda: self.app.set_assistant_state("IDLE"))
+
+                    if texto is None:
+                        continue
 
                     if not modo_comando:
                         if WAKE_WORD in texto:
@@ -143,6 +156,13 @@ class AssistantEngine:
 
         except Exception as e:
             self.log(f"❌ Erro no Engine de Voz: {e}")
+
+    def _log_resultado_vazio(self, texto):
+        """Loga quando o reconhecedor finaliza um trecho de áudio sem extrair
+        texto, para diagnosticar falhas silenciosas (ex.: primeira fala após
+        ativação sendo perdida)."""
+        if not texto:
+            self.log("🔇 Áudio captado, mas nada foi reconhecido.")
 
     def _identificar_comando(self, texto):
         for nome, (gatilhos, acao) in self.comandos.items():

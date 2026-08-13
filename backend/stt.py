@@ -68,6 +68,16 @@ class SpeechToText:
 
     def set_vocabulario(self, palavras_ou_frases=None):
         self._rec = self._criar_recognizer(palavras_ou_frases)
+        # Descarta áudio pendente (ex.: gravado durante o TTS ou antes da troca
+        # de vocabulário) para a nova fase de escuta começar sem lixo acumulado.
+        self._esvaziar_fila()
+
+    def _esvaziar_fila(self):
+        while True:
+            try:
+                self._queue.get_nowait()
+            except queue.Empty:
+                break
 
     def _criar_recognizer(self, vocabulario):
         if vocabulario:
@@ -92,15 +102,28 @@ class SpeechToText:
             print(status, file=sys.stderr)
         self._queue.put(bytes(indata))
 
-    def escutar(self, mostrar_parcial=False):
+    def escutar(self, mostrar_parcial=False, timeout=None, on_resultado=None):
+        """Gera textos reconhecidos. Se `timeout` for informado, gera `None`
+        periodicamente durante silêncio (nenhum áudio finalizado), permitindo
+        que quem consome o gerador faça verificações sensíveis a tempo (ex.:
+        timeout de modo ativo) mesmo sem fala nova. `on_resultado`, se
+        informado, é chamado com o texto bruto de cada resultado finalizado
+        (inclusive vazio), útil para depuração."""
         if self._stream is None:
             self.start()
 
         while True:
-            data = self._queue.get()
+            try:
+                data = self._queue.get(timeout=timeout)
+            except queue.Empty:
+                yield None
+                continue
+
             if self._rec.AcceptWaveform(data):
                 resultado = json.loads(self._rec.Result())
                 texto = resultado.get("text", "").strip().lower()
+                if on_resultado:
+                    on_resultado(texto)
                 if texto:
                     yield texto
             elif mostrar_parcial:
