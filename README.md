@@ -98,6 +98,25 @@ python3 -c "import sounddevice as sd; print(sd.query_devices())"
 ```
 *Anote o número do seu microfone e, se necessário, configure o `sd.default.device` no seu script.*
 
+### 4.1 Configurando o dispositivo de saída de áudio (música e TTS)
+
+Música e a fala do assistente (TTS) saem via `aplay`, apontando pra um dispositivo ALSA (ex.: `hw:1,0`). **O índice do card do headset USB varia de máquina pra máquina** — e pode até mudar na mesma máquina se o headset for desconectado/reconectado ou a placa reiniciar. Por isso esse valor não é fixo no código: ele vem da variável de ambiente `AUDIO_DEVICE`, com `hw:1,0` como padrão se ela não estiver definida.
+
+1. Descubra o card certo **na máquina que você está usando agora**:
+   ```bash
+   aplay -l
+   ```
+   Procure a linha do headset USB, ex.: `card 1: Device [USB Audio Device]...` → o dispositivo é `hw:1,0`.
+
+2. Se o card não for `1` (o padrão), exporte a variável antes de rodar o app:
+   ```bash
+   export AUDIO_DEVICE=hw:2,0
+   ```
+
+3. Pra não precisar repetir isso a cada sessão, adicione essa linha no final do `~/.bashrc` (ou `~/.profile`) **daquela máquina específica** e abra um terminal novo.
+
+> **Importante:** `AUDIO_DEVICE` é uma configuração local de cada máquina/Raspberry Pi (fica no `~/.bashrc` dela), não do projeto — cada uma guarda o próprio valor. Se o assistente ficar mudo depois de trocar de máquina, o primeiro passo é sempre rodar `aplay -l` de novo e conferir/reexportar essa variável lá.
+
 ---
 
 ## 5. Rodando o Assistente de Voz
@@ -130,6 +149,7 @@ Assim que o terminal exibir `[Alexa Local]: Inicializada com sucesso!`, siga os 
 | **`PermissionError: GPIO` ou `gpiomem`** | Seu usuário não tem permissão de hardware. Rode: `sudo usermod -aG gpio $USER`, reinicie a placa e tente de novo. |
 | **`PortAudioError` no terminal** | O script não achou o microfone. Rode o comando do Passo 4 para listar os dispositivos de áudio e verificar a conexão. |
 | **Fica travado no "Carregando modelo..."** | Verifique a conexão com a internet. O Vosk está tentando baixar o modelo na primeira execução. |
+| **Comando de música/hora executa mas não sai som nenhum** | `AUDIO_DEVICE` está apontando pro card ALSA errado nessa máquina. Rode `aplay -l`, confira o card do headset e exporte `AUDIO_DEVICE=hw:X,0` com o número certo (veja Seção 4.1). |
 
 ---
 

@@ -45,7 +45,7 @@ A Tabela 1 detalha os Requisitos Funcionais (RF) e Não Funcionais (RNF) definid
 | **RF01** | Reconhecer a palavra de ativação (ex: `"Ativar"`) executando a inferência de áudio 100% localmente no hardware, sem dependência de conexão com a internet. | **RF** |
 | **RF02** | O sistema deve mapear uma intenção de voz (ex: `"Luz"`) para acionar um componente de hardware periférico conectado (ex: controle de iluminação). | **RF** |
 | **RF03** | Reconhecer a palavra de desativação (ex: `"Desligar"`) executando a inferência de áudio 100% localmente no hardware, e acionar modo "escuta inativa". | **RF** |
-| **RF04** | Tocar arquivos de áudio locais (ex: `"Tocar Olivia Rodrigo"`) acionando o player nativo via saída P2 ou HDMI ao reconhecer o comando específico. | **RF** |
+| **RF04** | Tocar arquivos de áudio locais (ex: `"Tocar Olivia Rodrigo"`, `"Armandinho"`, `"Crystal Castles"`) acionando o player nativo via saída P2 ou HDMI ao reconhecer o comando específico. | **RF** |
 | **RF05** | Indicar as horas no momento atual ao reconhecer o comando específico. (ex: `"Horas"`) | **RF** |
 | **RNF01** | **Eficiência:** O intervalo de tempo entre o fim da fala do usuário e o início da ação do sistema não deve ultrapassar **2,5 segundos**. | **RNF** |
 | **RNF02** | **Confiabilidade:** Deve apresentar uma taxa de acerto no reconhecimento do comando de pelo menos **50%** em um ambiente com ruído moderado. | **RNF** |
@@ -93,9 +93,75 @@ A partir da integração da interface gráfica, o sistema evoluiu para uma arqui
 * **Encerramento controlado:** `main.py` trata `SIGINT`/`SIGTERM` e o fechamento da janela para garantir que os processos externos (`aplay`, `espeak-ng`) sejam finalizados corretamente ao sair.
 
 O protótipo inicial em `src/` (descrito nas seções 4.2 e 4.2.1) permanece no repositório como referência do desenvolvimento incremental, mas não é mais o caminho de execução principal do sistema.
+
+#### 4.2.3 Diagramas da Arquitetura Consolidada (`backend/` + `frontend/`)
+Os diagramas abaixo já refletem a arquitetura atual, incluindo o módulo de Text-to-Speech (`tts.py`) — ausente no protótipo inicial — e a separação entre backend e interface gráfica.
+
+##### Diagrama de Blocos (Arquitetura Consolidada)
+
+```mermaid
+flowchart TD
+    subgraph Hardware
+        MIC[Microfone USB]
+        SPK[Saída de Áudio / Headset USB]
+        LED_Fisico[LED Físico no Pino 17]
+    end
+
+    subgraph Backend["backend/ (AssistantEngine em thread dedicada)"]
+        STT(stt.py: SpeechToText)
+        ENGINE{{assistant_engine.py: AssistantEngine}}
+        HW(hardware.py: HardwareController)
+        PLAYER(musica.py: Player)
+        TTS(tts.py: TextToSpeech)
+    end
+
+    subgraph Frontend["frontend/ (customtkinter)"]
+        APP[app.py: App]
+        PAGES["pages/: idle, clock, light, song"]
+    end
+
+    MIC -->|Áudio Bruto| STT
+    STT -->|Texto Transcrito| ENGINE
+
+    ENGINE -->|Atualiza Vocabulário| STT
+    ENGINE -->|Comando de Luz| HW
+    ENGINE -->|Comando de Música| PLAYER
+    ENGINE -->|Confirmação/Resposta Falada| TTS
+    ENGINE -->|app.after: muda estado/tela| APP
+
+    HW -->|Nível Lógico| LED_Fisico
+    PLAYER -->|aplay| SPK
+    TTS -->|espeak-ng + aplay| SPK
+    APP --> PAGES
+```
+
+##### Diagrama de Máquina de Estados (Arquitetura Consolidada)
+Diferente do protótipo inicial (que retorna ao Modo de Espera após qualquer comando único), o `AssistantEngine` permite **múltiplos comandos por ativação**, permanecendo em Modo de Comando até um timeout de inatividade ou uma palavra de desativação explícita.
+
+```mermaid
+stateDiagram-v2
+    [*] --> ModoEspera : Inicialização (+ aquecimento do microfone)
+
+    ModoEspera --> ModoComando : Wake Word ("ativar")
+    note left of ModoEspera
+        Vocabulário: ["ativar"]
+        Tela: IDLE
+    end note
+
+    ModoComando --> ModoComando : Comando reconhecido e executado\n(TTS responde, timeout é renovado)
+    note right of ModoComando
+        Vocabulário: VOCAB_COMANDOS
+        Tela: OUVINDO
+        Timeout: 10s de inatividade
+    end note
+
+    ModoComando --> ModoEspera : Timeout (10s sem novo comando)
+    ModoComando --> ModoEspera : Palavra de desativação\n("desativar", "cancelar", "tchau", "fechar")
+```
+
 ---
-### 4.3 Diagramas da Arquitetura
-*(Diagramas abaixo descrevem a arquitetura do protótipo inicial em `src/`; ver 4.2.2 para a arquitetura consolidada.)*
+### 4.3 Diagramas da Arquitetura do Protótipo Inicial
+*(Diagramas abaixo descrevem a arquitetura do protótipo inicial em `src/`, sem TTS nem interface gráfica; ver 4.2.3 para a arquitetura consolidada.)*
 
 O GitHub suporta a renderização nativa dos diagramas abaixo (Mermaid).
 
@@ -392,6 +458,8 @@ Complementando os testes planejados na Seção 7 (que validam requisitos físico
 | **T05** | Latência total entre o fim do comando de voz e a execução da ação (amostragem contínua) | RNF01 | < 2,5 s | *A preencher* | *Pendente* |
 | **T06** | Taxa de acerto/confiabilidade no reconhecimento de comandos em ambiente ruidoso (~50 emissões) | RNF02 | >= 50% de acertos | *A preencher* | *Pendente* |
 
+> **Vídeo de demonstração adicional (T01–T04):** registro em vídeo cobrindo, em sequência, a ativação (`"ativar"`), o acionamento de iluminação (`"acender"`/`"apagar"`), a consulta de horário (`"horas"`) e a reprodução de música (faixa "Olivia Rodrigo"). [Assistir no Google Drive](https://drive.google.com/file/d/1C1NoB8hOFpalSzMZ8HFwpzkO2VEgXw3s/view?usp=sharing) — as faixas adicionadas mais recentemente (Armandinho e Crystal Castles) ainda não foram cobertas por este vídeo nem validadas no T03.
+
 ---
 
 ## 8. Conclusões e Trabalhos Futuros
@@ -402,7 +470,8 @@ O projeto atingiu seu objetivo geral: um assistente de voz funcional, executando
 ### 8.2 Direções para Trabalhos Futuros
 * Unificar a implementação legada (`src/`) com a arquitetura consolidada (`backend/`+`frontend/`), removendo a duplicação de módulos (STT, player de música, TTS).
 * Corrigir a incompatibilidade de formato de áudio (`.wav` esperado vs. `.mp3` disponível) na reprodução de música.
-* Resolver as ambiguidades remanescentes de reconhecimento de comando causadas por gatilhos que são substring uns dos outros.
+* **Parcialmente resolvido — reconhecimento de fala (STT):** o dicionário de vocabulário do Vosk foi limpo de palavras curtas/preenchimento (ex.: artigo `"a"` em `"ligar a luz"`, contração `"das"` em `"regue das tramanda"`, e a entrada redundante `"que horas"`), que estavam poluindo o vocabulário restrito e causando transcrições incorretas (ex.: fala não reconhecida sendo transcrita como `"u"`, capturado do gatilho `"good 4 u"`).
+* **Ainda em aberto — roteamento de comando:** a ambiguidade específica documentada na Seção 6.3 (gatilho genérico `"luz"` interceptando frases de outros comandos) **persiste**: confirmamos que `"apagar luz"` e `"desligar luz"` continuam sendo roteados incorretamente para `acender_luz`, já que `_identificar_comando` retorna no primeiro gatilho encontrado (iteração por `dict`) e os gatilhos genéricos de `acender_luz` (`"luz"`, `"ligar luz"`) são avaliados antes dos gatilhos mais específicos de `apagar_luz`. A correção exige priorizar gatilhos mais específicos (frases completas) sobre os genéricos antes de casar por substring, não apenas limpar o vocabulário do STT.
 * Estender a suíte de testes automatizados para cobrir `backend/` e `frontend/`.
 * Executar e registrar os testes físicos pendentes (T05 e T06) na Raspberry Pi.
 
