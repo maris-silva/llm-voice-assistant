@@ -4,7 +4,7 @@
 
 ## Assistente de Voz 100% Offline e Modular para Raspberry Pi
 
-O **LLM Voice Assistant** é uma solução de assistente virtual embarcada desenvolvida para rodar totalmente **offline** em uma **Raspberry Pi 3**. O projeto prioriza a privacidade do usuário, eliminando o tráfego de dados para a nuvem e proporcionando baixa latência nas interações.
+O **LLM Voice Assistant** é uma solução de assistente virtual embarcada desenvolvida para rodar totalmente **offline** em uma **Raspberry Pi 3**, combinando reconhecimento de fala (STT) e síntese de voz (TTS) executados localmente para conversar com o usuário. O projeto prioriza a privacidade do usuário, eliminando o tráfego de dados para a nuvem e proporcionando baixa latência nas interações.
 
 O sistema utiliza um mecanismo de **Speech-to-Text (STT)** em português que roda localmente. Ele atua em modo de espera aguardando um comando de palavra-chave (ex: `"ativar"`). Ao reconhecer a ativação, o assistente entra em um ciclo operacional modular que processa comandos de voz e executa ações diretas no hardware e software local.
 
