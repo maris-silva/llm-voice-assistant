@@ -141,8 +141,26 @@ Assim que o terminal exibir `[Alexa Local]: Inicializada com sucesso!`, siga os 
    * Diga **`"cancelar"`** -> O assistente volta a dormir.
 
 ---
+## 6. Implementação da memória SWAP e priorização do processo 
+### 6.1. Configuração de SWAP (WSL 2)
+A alteração do SWAP ocorre via arquivo `.wslconfig` no Windows (`%USERPROFILE%`):
+1. **Editar/Criar `%USERPROFILE%\.wslconfig`**:
+   ```ini
+   [wsl2]
+   memory=8GB
+   swap=16GB
+2. Aplicar: Execute `wsl --shutdown` no PowerShell e reinicie o terminal.
 
-## 6. Solução de Problemas (Troubleshooting)
+3. Validar: Use `free -h` ou `swapon --show` no Linux.
+
+### 6.2. Priorização de Processos
+Prioridade de CPU :
+
+`sudo nice -n -20 python3 main.py`
+
+---
+
+## 7. Solução de Problemas (Troubleshooting)
 
 | Problema | Solução |
 | :--- | :--- |

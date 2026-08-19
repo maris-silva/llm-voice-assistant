@@ -277,6 +277,8 @@ sequenceDiagram
 
 A metodologia adotada para a construção do assistente de voz offline fundamentou-se nos princípios já trabalhados anteriormente em laboratório de **desenvolvimento iterativo e incremental**, alinhados a boas práticas de **engenharia de software** (como os princípios SOLID). O foco principal da estrutura de código em `src/` foi garantir a **modularização**, o **desacoplamento de bibliotecas externas** e a **reutilização de componentes**, viabilizando a adição progressiva de novas funcionalidades ao longo das semanas de desenvolvimento sem a necessidade de refatorações destrutivas, de forma que seja possível adicionar o máximo de funcionalidades possível até a entrega final.
 
+Com a memória RAM limitada da Raspberry Pi 3, implementamos um mecanismo de swap para emprestar a memória de SSD como memória RAM. Além disso, colocamos o processo com prioridade máxima para que o modelo tivesse o melhor aproveitamento da CPU durante a execução. 
+
 ---
 
 ### 6.1 Estrutura Modular e Desacoplamento do Código

@@ -19,7 +19,7 @@ PASTA_MUSICAS = RAIZ_PROJETO / "musicas"
 # é configurável via variável de ambiente em vez de fixo no código. Descubra
 # o valor certo em cada máquina com `aplay -l` e exporte, ex.:
 # export AUDIO_DEVICE=hw:2,0
-DISPOSITIVO_AUDIO = os.environ.get("AUDIO_DEVICE", "hw:1,0")
+DISPOSITIVO_AUDIO = os.environ.get("AUDIO_DEVICE", "plughw:2,0")
 
 # Tempo limite em segundos sem detectar fala/comando antes de fechar a escuta ativa
 TIMEOUT_MODO_ATIVO = 10.0

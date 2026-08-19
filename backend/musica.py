@@ -36,7 +36,7 @@ class Player:
             self._processo = subprocess.Popen(
                 comando,
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stderr=subprocess. DEVNULL,
             )
             return escolhida.stem
         except FileNotFoundError:
