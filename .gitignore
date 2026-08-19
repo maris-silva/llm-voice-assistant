@@ -57,6 +57,8 @@ tests/output/
 htmlcov/
 .pytest_cache/
 
+/sessao.log
+
 docs/*.aux
 docs/*.log
 docs/*.out

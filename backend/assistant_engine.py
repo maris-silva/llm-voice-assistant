@@ -8,6 +8,7 @@ from backend.stt import SpeechToText
 from backend.musica import Player
 from backend.hardware import HardwareController
 from backend.tts import TextToSpeech
+from backend import state_log
 
 WAKE_WORD = "ativar"
 SLEEP_WORDS = ["desativar", "cancelar", "tchau", "fechar"]
@@ -103,12 +104,18 @@ class AssistantEngine:
         ]
 
     def start(self):
+        aviso = state_log.registrar_inicio()
+        if aviso:
+            self.app.after(0, self.app.mostrar_painel_debug)
+            self.log(aviso)
+
         self.is_running = True
         self.thread = threading.Thread(target=self._loop_escuta, daemon=True)
         self.thread.start()
 
     def stop(self):
         """Para o loop de escuta e limpa os subprocessos atrelados de mídia e síntese de voz"""
+        state_log.registrar_fim()
         self.is_running = False
 
         # Interrompe a execução do Player de áudio

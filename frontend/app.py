@@ -126,6 +126,14 @@ class App(ctk.CTk):
             self.debug_frame.grid_forget()
             self.geometry("650x650")
 
+    def mostrar_painel_debug(self):
+        """Abre o painel de debug programaticamente (ex.: para expor um aviso
+        de sessão anterior encerrada incorretamente sem depender do usuário
+        lembrar de ativar o switch 'MODO DEBUG')."""
+        if self.switch_debug.get() == 0:
+            self.switch_debug.select()
+            self.toggle_debug()
+
     def log_debug(self, message: str):
         self.log_textbox.insert("end", f"> {message}\n")
         self.log_textbox.see("end")
