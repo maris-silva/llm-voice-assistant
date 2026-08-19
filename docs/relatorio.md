@@ -465,7 +465,7 @@ Complementando os testes planejados na Seção 7 (que validam requisitos físico
 | **T06** | Taxa de acerto/confiabilidade no reconhecimento de comandos em ambiente ruidoso (~50 emissões) | RNF02 | >= 50% de acertos | Atingido 64% de acurácia baseado em 50 testes realizados em laboratório  | OK |
 | **T07** | Dados persistidos da última sessão na memória do computador ao matar o processo de maneira abrupta. | OK | Persistência dos dados |  Atingido o salvamento da memória em situações críticas de desligamento | OK |
 
-> **Vídeo de demonstração adicional (T01–T04):** registro em vídeo cobrindo, em sequência, a ativação (`"ativar"`), o acionamento de iluminação (`"acender"`/`"apagar"`), a consulta de horário (`"horas"`) e a reprodução de música (faixa "Olivia Rodrigo"). [Assistir no Google Drive](https://drive.google.com/file/d/1C1NoB8hOFpalSzMZ8HFwpzkO2VEgXw3s/view?usp=sharing) — as faixas adicionadas mais recentemente (Armandinho e Crystal Castles) ainda não foram cobertas por este vídeo nem validadas no T03.
+ **Vídeo de demonstração final (T01–T04):** registro em vídeo cobrindo, em sequência, a ativação (`"ativar"`), o acionamento de iluminação (`"acender luz"`/`"apagar luz"`), a consulta de horário (`"horas"`) e a reprodução das três músicas (faixas "tocar olivia rodrigo", "tocar cristal" e "tocar armandinho"), entrando novamente em idle no final. [Assistir no Google Drive](https://drive.google.com/file/d/1o38cn9QBJtt8BGZYXCxl13of8eIWfeaa/view?usp=drive_link)
 
 ---
 
