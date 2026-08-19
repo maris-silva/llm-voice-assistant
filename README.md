@@ -13,9 +13,10 @@ O sistema utiliza um mecanismo de **Speech-to-Text (STT)** em português que rod
 * **Hardware Embarcado:** Desenvolvido e otimizado para Raspberry Pi 3.
 * **Periféricos Simples:** Utiliza um headset USB (fone de ouvido + microfone) para entrada de áudio e saída sonora.
 * **Arquitetura Modular:** Estrutura expansível onde novos arquivos de comandos podem ser adicionados facilmente para estender as capacidades do assistente.
-* **Funcionalidades Iniciais:**
-  * **Controle de Hardware:** Acionamento e desligamento do LED da Raspberry Pi via GPIO.
-  * **Feedback via Terminal:** Transcrição em tempo real e status da execução exibidos via linha de comando.
+* **Interface Gráfica:** Telas em `customtkinter` (repouso, ouvindo, luz, música) que refletem o estado do assistente em tempo real, com um painel de debug embutido.
+* **Controle de Hardware:** Acionamento e desligamento do LED da Raspberry Pi via GPIO.
+* **Reprodução de Música:** Toca faixas locais sob comando de voz, exibindo capa e progresso na tela.
+* **Persistência de Sessão:** Detecta e sinaliza na tela se a execução anterior foi encerrada de forma abrupta (ex.: queda de energia), sem depender de hardware extra — ver [Seção 5.1](#51-persistência-de-sessão).
 
 
 # ORGANIZAÇÃO DE PASTAS
@@ -24,18 +25,35 @@ A estrutura do diretório do projeto está organizada da seguinte forma:
 
 ```text
 llm-voice-assistant/
+├── main.py                 # Ponto de entrada único: sobe a interface gráfica e o backend
+├── requirements.txt        # Dependências Python do projeto
+├── musicas/                # Faixas de áudio (.wav) tocadas pelo assistente
 ├── docs/
 │   └── relatorio.md        # Documentação completa e relatório final do projeto
-├── src/
-│   ├── LED.py             # Módulo de controle do LED da placa via GPIO
-│   ├── main.py            # Script principal (orquestrador e loop de escuta)
-│   └── stt.py             # Módulo de processamento Speech-to-Text (Vosk)
+├── backend/
+│   ├── assistant_engine.py # Orquestrador: máquina de estados, thread de escuta, roteamento de comandos
+│   ├── stt.py              # Speech-to-Text (Vosk)
+│   ├── musica.py           # Tocador de áudio local (aplay)
+│   ├── tts.py              # Texto-para-voz (espeak-ng)
+│   ├── hardware.py         # Controle do LED via GPIO
+│   └── state_log.py        # Persistência de sessão (detecta encerramento abrupto)
+├── frontend/
+│   ├── app.py       # Janela principal e troca de telas (customtkinter)
+│   ├── constants.py
+│   ├── pages/       # Telas: idle, clock, light, song
+│   └── assets/      # Imagens usadas pelas telas (capas de música, ícones)
+├── src/                     # Protótipo inicial (referência do desenvolvimento incremental;
+│                            # não é mais o caminho de execução principal do sistema)
+│   ├── LED.py
+│   ├── main.py
+│   └── stt.py
 ├── tests/
 │   ├── conftest.py        # Configuração compartilhada (mocka hardware GPIO)
 │   ├── test_comandos.py   # Testes do reconhecimento/roteamento de comandos
 │   ├── test_stt.py        # Testes do SpeechToText (Vosk/microfone mockados)
 │   ├── test_musica.py     # Testes do tocador de música (aplay mockado)
-│   └── test_tts.py        # Testes do texto-para-voz (espeak-ng mockado)
+│   ├── test_tts.py        # Testes do texto-para-voz (espeak-ng mockado)
+│   └── test_state_log.py  # Testes da persistência de sessão
 ├── .github/
 │   └── workflows/
 │       └── tests.yml      # CI: roda a suíte de testes a cada push/PR
@@ -52,6 +70,7 @@ llm-voice-assistant/
 * **Placa:** Raspberry Pi 3 rodando **Raspberry Pi OS**.
 * **Áudio:** Headset USB (ou microfone USB + saída de áudio).
 * **Módulo LED:** 1x LED conectado ao **pino GPIO 17** e GND, utilizando um resistor (220Ω a 330Ω).
+* **Display:** monitor conectado via HDMI — o assistente roda com uma interface gráfica (`customtkinter`), não só via terminal.
 
 > **Nota:** A conexão com a internet é necessária **apenas na primeira execução** para que a biblioteca faça o download automático do modelo de voz. Depois disso, rodará 100% offline.
 
@@ -63,8 +82,12 @@ Abra o terminal do Raspberry Pi OS e instale as dependências de áudio nativas:
 
 ```bash
 sudo apt update
-sudo apt install -y python3-pip python3-venv portaudio19-dev libasound2-dev
+sudo apt install -y python3-pip python3-venv portaudio19-dev libasound2-dev alsa-utils espeak-ng
 ```
+
+* `portaudio19-dev` / `libasound2-dev`: necessários pra `sounddevice` capturar o microfone.
+* `alsa-utils`: fornece o `aplay`, usado pra tocar música e a fala sintetizada.
+* `espeak-ng`: motor de síntese de voz (TTS) usado pelo assistente pra responder falando.
 
 ---
 
@@ -81,10 +104,10 @@ sudo apt install -y python3-pip python3-venv portaudio19-dev libasound2-dev
    source venv/bin/activate
    ```
 
-3. Instale as bibliotecas Python exatas que o seu código exige:
+3. Instale as bibliotecas Python do projeto a partir do `requirements.txt`:
    ```bash
    pip install --upgrade pip
-   pip install vosk sounddevice gpiozero
+   pip install -r requirements.txt
    ```
 
 ---
@@ -121,24 +144,42 @@ Música e a fala do assistente (TTS) saem via `aplay`, apontando pra um disposit
 
 ## 5. Rodando o Assistente de Voz
 
-Com o ambiente virtual ativado (`venv`), inicie o script principal:
+Com o ambiente virtual ativado (`venv`), inicie o script principal (na raiz do projeto):
 
 ```bash
-python3 src/main.py
+python3 main.py
 ```
 
+Isso abre a janela do assistente (interface `customtkinter`) e inicia a escuta em segundo plano. O `src/main.py` que aparece na árvore de pastas é o protótipo inicial do projeto, mantido só como referência — não é mais o caminho de execução usado.
+
 ### O que vai acontecer na primeira vez?
-Como o código usa `Model(model_name="vosk-model-small-pt-0.3")`, **a primeira execução vai demorar um pouco mais**, pois o Vosk fará o download de aproximadamente 40MB do modelo para a pasta `.cache` da sua Raspberry.
+Como o código usa `Model(model_name="vosk-model-small-pt-0.3")`, **a primeira execução vai demorar um pouco mais**, pois o Vosk fará o download de aproximadamente 40MB do modelo para a pasta `.cache` da sua Raspberry (o terminal mostra `⏳ Carregando o modelo de voz... Aguarde.` nesse meio tempo).
 
 ### Fluxo de Interação
-Assim que o terminal exibir `[Alexa Local]: Inicializada com sucesso!`, siga os passos:
+Assim que a janela abrir na tela de **Repouso**, siga os passos:
 
 1. **Ativação:** Diga **`"ativar"`**.
-   * *O sistema responderá:* `🔔 [Alexa]: Diga o comando...`
+   * *O sistema responde:* a tela muda para "Ouvindo" e o assistente confirma por voz (TTS).
 2. **Envio de Comandos:** Fale um dos comandos programados.
-   * Diga **`"ligar a luz"`** ou **`"acender"`** -> O LED no GPIO 17 acenderá.
-   * Diga **`"horas"`** -> Ele reconhecerá a intenção de buscar a hora.
-   * Diga **`"cancelar"`** -> O assistente volta a dormir.
+   * Diga **`"ligar a luz"`** ou **`"acender"`** -> o LED no GPIO 17 acende e a tela reflete o estado.
+   * Diga **`"horas"`** -> o assistente fala e mostra o horário atual.
+   * Diga **`"tocar olivia rodrigo"`**, **`"tocar armandinho"`** ou **`"crystal castles"`** -> toca a faixa e abre a tela de música (capa, progresso, curtir).
+   * Diga **`"cancelar"`**, **`"desativar"`** ou **`"tchau"`** -> o assistente volta a dormir.
+3. **Painel de Debug (opcional):** ative o switch **"MODO DEBUG"** no rodapé da janela para acompanhar em tempo real o log de eventos reconhecidos pelo sistema.
+
+### 5.1 Persistência de Sessão
+
+A cada execução, o sistema registra início e fim em `sessao.log` (raiz do projeto, não versionado — ver `.gitignore`). Se a Raspberry Pi perder energia ou o processo for encerrado de forma abrupta (sem passar pelo `Ctrl+C`/fechamento da janela), esse arquivo fica com um registro de início sem o registro de fim correspondente.
+
+Na execução seguinte, o sistema detecta essa inconsistência automaticamente:
+* O painel **"MODO DEBUG"** abre sozinho, mesmo que o switch esteja desligado.
+* Aparece a mensagem: `⚠️ Sessão anterior não encerrou corretamente (última atividade: ...)`.
+
+Isso funciona sem nenhum hardware extra — o arquivo é só texto em disco, que sobrevive normalmente a uma queda de energia. Pra simular esse cenário sem precisar desligar a placa fisicamente, mate o processo à força em vez de fechar normalmente e rode de novo:
+```bash
+pkill -9 -f "python3 main.py"
+python3 main.py
+```
 
 ---
 ## 6. Implementação da memória SWAP e priorização do processo 
@@ -173,7 +214,7 @@ Prioridade de CPU :
 
 # Testes Automatizados
 
-O projeto tem uma suíte de testes (`tests/`) que cobre o reconhecimento/roteamento de comandos, o `SpeechToText`, o tocador de música e o texto-para-voz. Hardware (microfone, GPIO) e processos externos (`aplay`, `espeak-ng`) são todos simulados — a suíte roda em qualquer máquina, não precisa de Raspberry Pi nem de microfone conectado.
+O projeto tem uma suíte de testes (`tests/`) que cobre o reconhecimento/roteamento de comandos, o `SpeechToText`, o tocador de música, o texto-para-voz e a persistência de sessão. Hardware (microfone, GPIO) e processos externos (`aplay`, `espeak-ng`) são todos simulados — a suíte roda em qualquer máquina, não precisa de Raspberry Pi nem de microfone conectado.
 
 ## Comando rápido
 
