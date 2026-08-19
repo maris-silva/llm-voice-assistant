@@ -455,8 +455,8 @@ Complementando os testes planejados na Seção 7 (que validam requisitos físico
 | **T02** | Precisão do acionamento de hardware do periférico (LED Ligar/Desligar) | RF02 | 100% de sucesso nas acionaçoes | [Vídeo](https://drive.google.com/file/d/17yvMzZEnAT2EplYF8eHxiztsZADwjX7V/view?usp=sharing) | OK |
 | **T03** | Execução e reprodução correta das faixas de áudio pré-definidas | RF04 | 100% de execução correta | [Vídeo](https://drive.google.com/file/d/1VgksXS5Cvcv5VBpo8SzBBQC8M4KPtRIi/view)  | OK |
 | **T04** | Exibição/retorno correto do horário atual após comando de voz (`"Horas"`) | RF05 | 100% de precisão | [Vídeo](https://drive.google.com/file/d/17yvMzZEnAT2EplYF8eHxiztsZADwjX7V/view?usp=sharing) | OK |
-| **T05** | Latência total entre o fim do comando de voz e a execução da ação (amostragem contínua) | RNF01 | < 2,5 s | *A preencher* | *Pendente* |
-| **T06** | Taxa de acerto/confiabilidade no reconhecimento de comandos em ambiente ruidoso (~50 emissões) | RNF02 | >= 50% de acertos | *A preencher* | *Pendente* |
+| **T05** | Latência total entre o fim do comando de voz e a execução da ação (amostragem contínua) | RNF01 | < 2,5 s | Resultado obtido de ~2s de latência, em média, com base em 20 amostragens | OK |
+| **T06** | Taxa de acerto/confiabilidade no reconhecimento de comandos em ambiente ruidoso (~50 emissões) | RNF02 | >= 50% de acertos | atingida 64% de acurácia baseado em 50 testes realizados em laboratório  | OK |
 
 > **Vídeo de demonstração adicional (T01–T04):** registro em vídeo cobrindo, em sequência, a ativação (`"ativar"`), o acionamento de iluminação (`"acender"`/`"apagar"`), a consulta de horário (`"horas"`) e a reprodução de música (faixa "Olivia Rodrigo"). [Assistir no Google Drive](https://drive.google.com/file/d/1C1NoB8hOFpalSzMZ8HFwpzkO2VEgXw3s/view?usp=sharing) — as faixas adicionadas mais recentemente (Armandinho e Crystal Castles) ainda não foram cobertas por este vídeo nem validadas no T03.
 
@@ -468,17 +468,35 @@ Complementando os testes planejados na Seção 7 (que validam requisitos físico
 O projeto atingiu seu objetivo geral: um assistente de voz funcional, executando 100% offline em uma Raspberry Pi 3, capaz de reconhecer uma palavra de ativação, mapear comandos de fala para ações de hardware (iluminação), reprodução de mídia e consulta de horário, com retorno tanto visual (interface gráfica) quanto falado (síntese de voz). A arquitetura evoluiu de um protótipo único em `src/` para uma estrutura modular em camadas (`backend/`/`frontend/`), acompanhada de uma suíte de testes automatizados que ajudou a identificar e documentar defeitos reais ao longo do desenvolvimento.
 
 ### 8.2 Direções para Trabalhos Futuros
-* Unificar a implementação legada (`src/`) com a arquitetura consolidada (`backend/`+`frontend/`), removendo a duplicação de módulos (STT, player de música, TTS).
+Se as seguintes oportunidades de aprimoramento e expansão do sistema em trabalhos futuros:
+
 * Corrigir a incompatibilidade de formato de áudio (`.wav` esperado vs. `.mp3` disponível) na reprodução de música.
 * **Parcialmente resolvido — reconhecimento de fala (STT):** o dicionário de vocabulário do Vosk foi limpo de palavras curtas/preenchimento (ex.: artigo `"a"` em `"ligar a luz"`, contração `"das"` em `"regue das tramanda"`, e a entrada redundante `"que horas"`), que estavam poluindo o vocabulário restrito e causando transcrições incorretas (ex.: fala não reconhecida sendo transcrita como `"u"`, capturado do gatilho `"good 4 u"`).
+
 * **Ainda em aberto — roteamento de comando:** a ambiguidade específica documentada na Seção 6.3 (gatilho genérico `"luz"` interceptando frases de outros comandos) **persiste**: confirmamos que `"apagar luz"` e `"desligar luz"` continuam sendo roteados incorretamente para `acender_luz`, já que `_identificar_comando` retorna no primeiro gatilho encontrado (iteração por `dict`) e os gatilhos genéricos de `acender_luz` (`"luz"`, `"ligar luz"`) são avaliados antes dos gatilhos mais específicos de `apagar_luz`. A correção exige priorizar gatilhos mais específicos (frases completas) sobre os genéricos antes de casar por substring, não apenas limpar o vocabulário do STT.
 * Estender a suíte de testes automatizados para cobrir `backend/` e `frontend/`.
 * Executar e registrar os testes físicos pendentes (T05 e T06) na Raspberry Pi.
 
+- **modelos de linguagem mais avançados**: Avaliar a integração de modelos
+de fala quantizados mais recentes para aumentar a precisão de transcrição em vocabulários mais amplos sem impactar significativamente a CPU.
+
+- **cancelamento ativo de ruído e pré-processamento de áudio**: Incorporar algoritmos de filtragem na camada de
+captura de áudio para elevar ainda mais a taxa de reconhecimento em ambientes extremamente ruidosos (> 65
+dB).
+
+- **melhoria da UI**: Consolidar a integração da interface desenvolvida com o orquestrador principal, também adicionando mais funcionalidades, melhorando eficiência e melhorando UX em geral.
 ---
 
 ## Referências Bibliográficas
-* VOSK API. *Offline speech recognition API*. Disponível em: <https://github.com/alphacep/vosk-api>.
-* GPIOZERO. *A simple interface to GPIO devices with Raspberry Pi*. Disponível em: <https://gpiozero.readthedocs.io/>.
-* CUSTOMTKINTER. *Modern and customizable Python UI-library based on Tkinter*. Disponível em: <https://github.com/TomSchimansky/CustomTkinter>.
-* ESPEAK-NG. *Open source speech synthesizer*. Disponível em: <https://github.com/espeak-ng/espeak-ng>.
+
+[1] ALPHACEP. **Vosk Speech Recognition API**. 2023. Disponível em: <https://github.com/alphacep/vosk-api>. Acesso em: 19 ago. 2026.
+
+[2] RASPBERRY PI FOUNDATION. **Raspberry Pi 3 Model B Documentation**. 2022. Disponível em: <https://www.raspberrypi.com/documentation/>. Acesso em: 19 ago. 2026.
+
+[3] GPIOZERO Community. **Gpiozero: A simple interface to GPIO devices with Raspberry Pi**. 2023. Disponível em: <https://gpiozero.readthedocs.io/>. Acesso em: 19 ago. 2026.
+
+[4] PORTAUDIO. **PortAudio Portable Cross-Platform Audio I/O Library**. 2023. Disponível em: <http://www.portaudio.com/>. Acesso em: 19 ago. 2026.
+
+[5] CUSTOMTKINTER. **Modern and customizable Python UI-library based on Tkinter**. Disponível em: <https://github.com/TomSchimansky/CustomTkinter>. Acesso em: 19 ago. 2026.
+
+[6] ESPEAK-NG. **Open source speech synthesizer**. Disponível em: <https://github.com/espeak-ng/espeak-ng>. Acesso em: 19 ago. 2026.
