@@ -229,13 +229,15 @@ sequenceDiagram
     actor U as Usuário
     participant STT as stt.py (SpeechToText)
     participant M as main.py
-    participant HW as Hardware (LED/Terminal)
+    participant TTS as tts.py (TextToSpeech)
+    participant HW as Hardware (LED/Alto-falante)
 
     M->>STT: set_vocabulario(["ativar"])
     U->>STT: Diz: "Ativar"
     STT->>M: Yield: "ativar"
     
-    M->>HW: Print: 🔔 [Alexa]: Diga o comando...
+    M->>TTS: falar("Modo de comando ativado")
+    TTS->>HW: Áudio Sintetizado
     M->>STT: set_vocabulario(VOCAB_COMANDOS)
     
     U->>STT: Diz: "Ligar a luz"
@@ -245,11 +247,11 @@ sequenceDiagram
     M->>M: Executa acender_luz()
     M->>HW: led.on() (Acende LED no pino 17)
     
+    M->>TTS: falar("A luz foi ligada")
+    TTS->>HW: Áudio Sintetizado
+    
     M->>STT: set_vocabulario(["ativar"])
-    M->>HW: Print: 🎙️ Modo de Espera...
 ```
-
----
 
 ## 5. Ferramentas, Linguagens e Componentes
 
