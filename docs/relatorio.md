@@ -50,6 +50,7 @@ A Tabela 1 detalha os Requisitos Funcionais (RF) e Não Funcionais (RNF) definid
 | **RNF01** | **Eficiência:** O intervalo de tempo entre o fim da fala do usuário e o início da ação do sistema não deve ultrapassar **2,5 segundos**. | **RNF** |
 | **RNF02** | **Confiabilidade:** Deve apresentar uma taxa de acerto no reconhecimento do comando de pelo menos **50%** em um ambiente com ruído moderado. | **RNF** |
 | **RNF03** | **Usabilidade:** Deve fornecer indicativos perceptíveis e imediatos (visuais ou sonoros) em até **500ms** para três estados: `"Ouvindo"`, `"Processando"` e `"Erro de Compreensão"`. | **RNF** |
+| **RNF04** | **Reliabilidade:** Ao processo desligar de forma abrupta, deve-se persistir o estado do funcionamento do programa na memória da Raspberry Pi 3. | **RNF** |
 
 ---
 
@@ -88,7 +89,7 @@ O comportamento do sistema alterna os vocabulários do motor de reconhecimento p
 #### 4.2.2 Arquitetura Consolidada (`backend/` e `frontend/`)
 A partir da integração da interface gráfica, o sistema evoluiu para uma arquitetura de duas camadas, orquestradas por um ponto de entrada único, `main.py`, na raiz do projeto:
 
-* **Camada de Backend (`backend/`):** o `AssistantEngine` substitui o orquestrador original, rodando em uma *thread* dedicada e adicionando um mecanismo de **timeout** (10s de inatividade retornam o sistema ao modo de espera automaticamente, sem exigir um comando explícito de desativação). Os módulos `hardware.py`, `musica.py` e `tts.py` isolam, respectivamente, o acionamento do LED, a reprodução de áudio e a síntese de voz (`espeak-ng`) usada para dar retorno falado ao usuário.
+* **Camada de Backend (`backend/`):** o `AssistantEngine` substitui o orquestrador original, rodando em uma *thread* dedicada e adicionando um mecanismo de **timeout** (15s de inatividade retornam o sistema ao modo de espera automaticamente, sem exigir um comando explícito de desativação). Os módulos `hardware.py`, `musica.py` e `tts.py` isolam, respectivamente, o acionamento do LED, a reprodução de áudio e a síntese de voz (`espeak-ng`) usada para dar retorno falado ao usuário.
 * **Camada de Frontend (`frontend/`):** interface gráfica em `customtkinter` (`App`), com telas (`idle`, `clock`, `light`, `song`) que o `AssistantEngine` aciona diretamente (`app.show_view(...)`) conforme o comando reconhecido, substituindo o feedback exclusivamente textual do protótipo inicial.
 * **Encerramento controlado:** `main.py` trata `SIGINT`/`SIGTERM` e o fechamento da janela para garantir que os processos externos (`aplay`, `espeak-ng`) sejam finalizados corretamente ao sair.
 
@@ -152,10 +153,10 @@ stateDiagram-v2
     note right of ModoComando
         Vocabulário: VOCAB_COMANDOS
         Tela: OUVINDO
-        Timeout: 10s de inatividade
+        Timeout: 15s de inatividade
     end note
 
-    ModoComando --> ModoEspera : Timeout (10s sem novo comando)
+    ModoComando --> ModoEspera : Timeout (15s sem novo comando)
     ModoComando --> ModoEspera : Palavra de desativação\n("desativar", "cancelar", "tchau", "fechar")
 ```
 
@@ -286,11 +287,11 @@ Com a memória RAM limitada da Raspberry Pi 3, implementamos um mecanismo de swa
 A arquitetura de software implementada no diretório `src/` isolou as responsabilidades do sistema em módulos independentes. Essa abordagem viabilizou a abstração dependências de bibliotecas de terceiros, garantindo as seguintes vantagens arquiteturais:
 
 * **Abstração das Engines de Áudio:** Os motores de inferência local (*Vosk*, etc.) não estão acoplados diretamente ao fluxo principal do sistema. Em vez disso, são encapsulados por interfaces/wrappers específicos. Caso seja necessário substituir a biblioteca de *Speech-to-Text* por outra alternativa mais leve ou robusta, a mudança fica restrita ao módulo correspondente, mantendo o restante da aplicação intocado.
-* **Isolamento da Camada de Hardware (GPIO Driver):** O controle dos atuadores (iluminação/módulo relé e LEDs de status) e sensores (botão físico) é intermediado por uma camada de controle que abstrai as chamadas diretas de bibliotecas de hardware (como `gpiozero`). Essa segregação foi definida também de modo a facilitar a realização de testes unitários durante o isolamento de falhas.
+* **Isolamento da Camada de Hardware (GPIO Driver):** O controle dos atuadores (iluminação/módulo relé e LEDs de status) e sensores (botão físico) é intermediado por uma camada de controle que abstrai as chamadas diretas de bibliotecas de hardware (como `gpiozero`). Essa segregação foi definida também de modo a facilitar a realização de testes unitários durante o isolamento de falhas, além de esconder a implementação direta em hardware utilizada.
 * **Desencadeamento por Eventos e Máquina de Estados:** O orquestrador central do sistema (`main.py` / controlador) gerencia as transições entre estados (*Escuta Passiva*, *Escuta Ativa*, *Processando* e *Repouso*) sem se preocupar com os detalhes de baixo nível da captura do sinal do áudio USB ou do controle de periféricos ligados à placa.
 
 
-#### Diagrama de Modulariação do Código
+#### Diagrama de Modularização do Código
 
 
 ```mermaid
@@ -447,6 +448,7 @@ Complementando os testes planejados na Seção 7 (que validam requisitos físico
 * **Teste T04 (RF05)**: Teste de display correto do horário atual com o comando (`"Horas"`).
 * **Teste T05 (RNF01)**: Cronometragem de latência total entre o encerramento do comando de voz e a execução da ação para diversas amostragens (desejado menor que 2,5s). 
 * **Teste T06 (RNF02)**: Teste de Confiabilidade também com diversas emissões de comando (~50) em ambiente com ruído de fundo moderado (desejado pelo menos 50% de acertos).
+* **Teste T07 (RNF04)**: Teste de Reliabilidade que ao matar o processo do programa de maneira abrupta, deve-se persistir um log sobre o erro.
 
 ### 7.2 Resultados Observados
 *(Esta seção será preenchida incrementalmente)*
@@ -458,7 +460,8 @@ Complementando os testes planejados na Seção 7 (que validam requisitos físico
 | **T03** | Execução e reprodução correta das faixas de áudio pré-definidas | RF04 | 100% de execução correta | [Vídeo](https://drive.google.com/file/d/1VgksXS5Cvcv5VBpo8SzBBQC8M4KPtRIi/view)  | OK |
 | **T04** | Exibição/retorno correto do horário atual após comando de voz (`"Horas"`) | RF05 | 100% de precisão | [Vídeo](https://drive.google.com/file/d/17yvMzZEnAT2EplYF8eHxiztsZADwjX7V/view?usp=sharing) | OK |
 | **T05** | Latência total entre o fim do comando de voz e a execução da ação (amostragem contínua) | RNF01 | < 2,5 s | Resultado obtido de ~2s de latência, em média, com base em 20 amostragens | OK |
-| **T06** | Taxa de acerto/confiabilidade no reconhecimento de comandos em ambiente ruidoso (~50 emissões) | RNF02 | >= 50% de acertos | atingida 64% de acurácia baseado em 50 testes realizados em laboratório  | OK |
+| **T06** | Taxa de acerto/confiabilidade no reconhecimento de comandos em ambiente ruidoso (~50 emissões) | RNF02 | >= 50% de acertos | Atingido 64% de acurácia baseado em 50 testes realizados em laboratório  | OK |
+| **T07** | Dados persistidos da última sessão na memória do computador ao matar o processo de maneira abrupta. | OK | Persistência dos dados |  Atingido o salvamento da memória em situações críticas de desligamento | OK |
 
 > **Vídeo de demonstração adicional (T01–T04):** registro em vídeo cobrindo, em sequência, a ativação (`"ativar"`), o acionamento de iluminação (`"acender"`/`"apagar"`), a consulta de horário (`"horas"`) e a reprodução de música (faixa "Olivia Rodrigo"). [Assistir no Google Drive](https://drive.google.com/file/d/1C1NoB8hOFpalSzMZ8HFwpzkO2VEgXw3s/view?usp=sharing) — as faixas adicionadas mais recentemente (Armandinho e Crystal Castles) ainda não foram cobertas por este vídeo nem validadas no T03.
 
