@@ -1,8 +1,6 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 import musica as musica_module
 from musica import Player
 
@@ -59,13 +57,6 @@ def test_tocando_reflete_estado_do_processo():
     assert player.tocando() is True
 
 
-# --- Sanidade de configuração -------------------------------------------
-# Player.tocar() só reconhece arquivos .wav (pasta.glob("*.wav")).
-
-@pytest.mark.xfail(
-    reason="Player só toca .wav, mas musicas/ só tem .mp3 — comando de voz de música não funciona hoje",
-    strict=True,
-)
 def test_pasta_musicas_tem_arquivo_no_formato_que_o_player_espera():
     raiz = Path(__file__).resolve().parent.parent
     pasta_musicas = raiz / "musicas"
