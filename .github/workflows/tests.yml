@@ -8,6 +8,7 @@ on:
 jobs:
   pytest:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -16,6 +17,8 @@ jobs:
           python-version: "3.12"
 
       - name: Instalar dependências de sistema (PortAudio)
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: sudo apt-get update && sudo apt-get install -y libportaudio2
 
       - name: Instalar dependências Python
